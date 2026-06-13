@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet, Pressable,
-  Platform, ActivityIndicator,
+  Platform, ActivityIndicator, Share,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -161,6 +161,20 @@ export default function LessonScreen() {
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
     notFoundTitle: { fontSize: 20, fontWeight: "700", color: colors.foreground },
     notFoundSub: { fontSize: 14, color: colors.mutedForeground, marginTop: 4 },
+    shapeScroll: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+    shapeCard: {
+      width: 100, alignItems: "center", gap: 6,
+      backgroundColor: colors.card,
+      borderRadius: 14, padding: 12,
+      borderWidth: 1, borderColor: colors.border,
+    },
+    shapeCardLabel: {
+      fontSize: 11, fontWeight: "700", color: colors.foreground,
+      textAlign: "center",
+      fontFamily: "PlusJakartaSans_700Bold",
+    },
+    shapeCardType: { fontSize: 10, color: colors.mutedForeground, textTransform: "capitalize" },
+    shareBtn: { padding: 6 },
   });
 
   if (loading) {
@@ -230,6 +244,12 @@ export default function LessonScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.foreground} />
         </Pressable>
         <Text style={s.navTitle} numberOfLines={1}>{stored.topic}</Text>
+        <Pressable
+          style={s.shareBtn}
+          onPress={() => Share.share({ title: lesson.title, message: `${lesson.title}\n${lesson.subtitle}\n\nDibuat dengan Lectra` })}
+        >
+          <Ionicons name="share-outline" size={22} color={colors.foreground} />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -264,6 +284,28 @@ export default function LessonScreen() {
             ))}
           </View>
         ))}
+
+        {/* 3D Model Gallery */}
+        {(lesson.sections?.length ?? 0) > 0 && (
+          <>
+            <View style={s.blockHeader}>
+              <Text style={s.blockHeaderText}>Model 3D</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.shapeScroll}>
+              {lesson.sections.map((sec, i) => (
+                <View key={i} style={s.shapeCard}>
+                  <ShapeIcon
+                    type={sec.shape?.type ?? "sphere"}
+                    color={sec.shape?.color ?? colors.accent}
+                    size={56}
+                  />
+                  <Text style={s.shapeCardLabel} numberOfLines={2}>{sec.shape?.label ?? sec.heading}</Text>
+                  <Text style={s.shapeCardType}>{sec.shape?.type}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </>
+        )}
 
         {/* Vocabulary */}
         {(lesson.vocabulary?.length ?? 0) > 0 && (

@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View, Text, TextInput, ScrollView, StyleSheet, Pressable,
-  ActivityIndicator, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Platform, KeyboardAvoidingView, Image,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { useColors } from "@/hooks/useColors";
 import { generateLocalLesson } from "@/lib/lesson-generator";
 import { saveLesson, listLessons, type StoredLesson } from "@/lib/lesson-storage";
 import ShapeIcon from "@/components/ShapeIcon";
-import { useCallback } from "react";
 
 const SUGGESTIONS = [
   "Tata Surya", "Sel Hewan", "Atom & Molekul",
@@ -20,16 +20,20 @@ const SUGGESTIONS = [
 ];
 
 const LEVELS = ["SD", "SMP", "SMA", "Kuliah"];
+type CreateMode = "topic" | "photo";
 
 export default function CreateScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const [mode, setMode] = useState<CreateMode>("topic");
   const [topic, setTopic] = useState("");
   const [level, setLevel] = useState("SMP");
+  const [photos, setPhotos] = useState<{ uri: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState<StoredLesson[]>([]);
+  const [inputFocused, setInputFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   const loadRecent = useCallback(async () => {
@@ -39,7 +43,10 @@ export default function CreateScreen() {
 
   useFocusEffect(useCallback(() => { loadRecent(); }, [loadRecent]));
 
-  const steps = ["Menganalisis topik…", "Menyusun konten…", "Membuat model 3D…", "Selesai!"];
+  const steps = [
+    "Menganalisis topik…", "Menyusun konten…",
+    "Membangun model 3D…", "Selesai!",
+  ];
 
   useEffect(() => {
     if (!loading) { setLoadingStep(0); return; }
@@ -47,7 +54,52 @@ export default function CreateScreen() {
     return () => clearInterval(id);
   }, [loading]);
 
-  async function onGenerate() {
+  // ── Photo picker ─────────────────────────────────────────────────────────────
+
+  async function pickFromGallery() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      setError("Izin galeri diperlukan untuk memilih foto.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      allowsMultipleSelection: true,
+      quality: 0.8,
+      selectionLimit: 8 - photos.length,
+    });
+    if (!result.canceled) {
+      const newPhotos = result.assets.map((a) => ({
+        uri: a.uri,
+        name: a.fileName ?? `photo_${Date.now()}.jpg`,
+      }));
+      setPhotos((prev) => [...prev, ...newPhotos].slice(0, 8));
+      Haptics.selectionAsync();
+    }
+  }
+
+  async function pickFromCamera() {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      setError("Izin kamera diperlukan untuk mengambil foto.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (!result.canceled) {
+      setPhotos((prev) =>
+        [...prev, { uri: result.assets[0].uri, name: `photo_${Date.now()}.jpg` }].slice(0, 8)
+      );
+      Haptics.selectionAsync();
+    }
+  }
+
+  function removePhoto(idx: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  // ── Generate ─────────────────────────────────────────────────────────────────
+
+  async function onGenerateTopic() {
     if (!topic.trim() || loading) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
@@ -57,12 +109,34 @@ export default function CreateScreen() {
       const saved = await saveLesson(topic.trim(), lesson);
       setTopic("");
       router.push(`/lesson/${saved.id}` as any);
-    } catch (e) {
+    } catch {
       setError("Gagal membuat materi. Coba lagi.");
     } finally {
       setLoading(false);
     }
   }
+
+  async function onGeneratePhoto() {
+    if (photos.length === 0 || loading) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setLoading(true);
+    setError(null);
+    try {
+      // Local-first: derive topic from the user label or a default, then generate
+      const label = topic.trim() || "Objek 3D Scan";
+      const lesson = await generateLocalLesson(label, "id", level);
+      const saved = await saveLesson(label, lesson);
+      setPhotos([]);
+      setTopic("");
+      router.push(`/lesson/${saved.id}` as any);
+    } catch {
+      setError("Gagal membuat materi dari foto. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Styles ───────────────────────────────────────────────────────────────────
 
   const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
@@ -70,7 +144,7 @@ export default function CreateScreen() {
     header: {
       paddingTop: Platform.OS === "web" ? 67 : insets.top + 16,
       paddingHorizontal: 20,
-      paddingBottom: 8,
+      paddingBottom: 12,
     },
     wordmark: {
       fontSize: 28, fontWeight: "700",
@@ -79,8 +153,22 @@ export default function CreateScreen() {
     },
     wordmarkAccent: { color: colors.accent },
     tagline: { fontSize: 13, color: colors.mutedForeground, marginTop: 2 },
-    inputCard: {
+    modeSwitcher: {
+      flexDirection: "row", gap: 0,
       marginHorizontal: 16, marginTop: 16,
+      backgroundColor: colors.muted,
+      borderRadius: 100, padding: 3,
+    },
+    modeBtn: {
+      flex: 1, paddingVertical: 9, borderRadius: 100,
+      alignItems: "center", flexDirection: "row",
+      justifyContent: "center", gap: 6,
+    },
+    modeBtnActive: { backgroundColor: colors.card },
+    modeBtnText: { fontSize: 13, fontWeight: "600", color: colors.mutedForeground },
+    modeBtnTextActive: { color: colors.foreground },
+    inputCard: {
+      marginHorizontal: 16, marginTop: 14,
       backgroundColor: colors.card,
       borderRadius: colors.radius,
       borderWidth: 1.5,
@@ -96,12 +184,53 @@ export default function CreateScreen() {
     },
     inputDivider: { height: 1, backgroundColor: colors.border },
     inputFooter: {
-      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      flexDirection: "row", alignItems: "center",
+      justifyContent: "space-between",
       paddingHorizontal: 14, paddingVertical: 10,
     },
     charCount: { fontSize: 12, color: colors.mutedForeground },
+    photoGrid: {
+      flexDirection: "row", flexWrap: "wrap", gap: 8,
+      marginHorizontal: 16, marginTop: 14,
+    },
+    photoThumb: {
+      width: 80, height: 80, borderRadius: 12,
+      overflow: "hidden", position: "relative",
+    },
+    photoImg: { width: 80, height: 80 },
+    photoRemove: {
+      position: "absolute", top: 4, right: 4,
+      width: 20, height: 20, borderRadius: 10,
+      backgroundColor: "rgba(0,0,0,0.55)",
+      alignItems: "center", justifyContent: "center",
+    },
+    photoAdd: {
+      width: 80, height: 80, borderRadius: 12,
+      backgroundColor: colors.muted,
+      borderWidth: 1.5, borderColor: colors.border,
+      borderStyle: "dashed",
+      alignItems: "center", justifyContent: "center", gap: 4,
+    },
+    photoAddText: { fontSize: 10, color: colors.mutedForeground },
+    photoBtns: {
+      flexDirection: "row", gap: 8,
+      marginHorizontal: 16, marginTop: 10,
+    },
+    photoBtn: {
+      flex: 1, flexDirection: "row", alignItems: "center",
+      justifyContent: "center", gap: 6,
+      paddingVertical: 11, borderRadius: 100,
+      borderWidth: 1.5, borderColor: colors.border,
+      backgroundColor: colors.card,
+    },
+    photoBtnText: { fontSize: 13, fontWeight: "600", color: colors.foreground },
+    photoHint: {
+      marginHorizontal: 16, marginTop: 8,
+      fontSize: 12, color: colors.mutedForeground,
+      textAlign: "center",
+    },
     sectionLabel: {
-      paddingHorizontal: 20, marginTop: 20, marginBottom: 8,
+      paddingHorizontal: 20, marginTop: 18, marginBottom: 8,
       fontSize: 12, fontWeight: "700",
       color: colors.mutedForeground,
       letterSpacing: 0.8, textTransform: "uppercase",
@@ -125,10 +254,9 @@ export default function CreateScreen() {
     },
     chipText: { fontSize: 13, color: colors.foreground },
     generateBtn: {
-      marginHorizontal: 16, marginTop: 20,
+      marginHorizontal: 16, marginTop: 18,
       paddingVertical: 16, borderRadius: 100,
-      alignItems: "center",
-      backgroundColor: colors.accent,
+      alignItems: "center", backgroundColor: colors.accent,
       flexDirection: "row", justifyContent: "center", gap: 8,
     },
     generateBtnDisabled: { backgroundColor: colors.muted },
@@ -163,7 +291,7 @@ export default function CreateScreen() {
     loadingText: { fontSize: 16, color: colors.foreground },
   });
 
-  const [inputFocused, setInputFocused] = useState(false);
+  const canGenerate = mode === "topic" ? topic.trim().length > 0 : photos.length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -175,38 +303,131 @@ export default function CreateScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Header */}
         <View style={s.header}>
           <Text style={s.wordmark}>
             <Text style={s.wordmarkAccent}>Lectra</Text>
           </Text>
-          <Text style={s.tagline}>Buat materi 3D dalam hitungan detik ✨</Text>
+          <Text style={s.tagline}>Buat materi 3D dalam hitungan detik</Text>
         </View>
 
-        {/* Topic input */}
-        <View style={[s.inputCard, inputFocused && s.inputCardFocused]}>
-          <TextInput
-            ref={inputRef}
-            style={s.input}
-            placeholder="Topik pelajaran… cth: Sel Hewan, Tata Surya"
-            placeholderTextColor={colors.mutedForeground}
-            value={topic}
-            onChangeText={setTopic}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
-            multiline
-            maxLength={300}
-            returnKeyType="done"
-          />
-          <View style={s.inputDivider} />
-          <View style={s.inputFooter}>
-            <Text style={s.charCount}>{topic.length}/300</Text>
-            {topic.length > 0 && (
-              <Pressable onPress={() => setTopic("")}>
-                <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
-              </Pressable>
-            )}
-          </View>
+        {/* Mode switcher */}
+        <View style={s.modeSwitcher}>
+          {(["topic", "photo"] as CreateMode[]).map((m) => (
+            <Pressable
+              key={m}
+              style={[s.modeBtn, mode === m && s.modeBtnActive]}
+              onPress={() => { setMode(m); setError(null); Haptics.selectionAsync(); }}
+            >
+              <Ionicons
+                name={m === "topic" ? "text-outline" : "camera-outline"}
+                size={15}
+                color={mode === m ? colors.foreground : colors.mutedForeground}
+              />
+              <Text style={[s.modeBtnText, mode === m && s.modeBtnTextActive]}>
+                {m === "topic" ? "Topik" : "Foto"}
+              </Text>
+            </Pressable>
+          ))}
         </View>
+
+        {mode === "topic" ? (
+          <>
+            {/* Topic input */}
+            <View style={[s.inputCard, inputFocused && s.inputCardFocused]}>
+              <TextInput
+                ref={inputRef}
+                style={s.input}
+                placeholder="Topik pelajaran… cth: Sel Hewan, Tata Surya"
+                placeholderTextColor={colors.mutedForeground}
+                value={topic}
+                onChangeText={setTopic}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                multiline
+                maxLength={500}
+                returnKeyType="done"
+              />
+              <View style={s.inputDivider} />
+              <View style={s.inputFooter}>
+                <Text style={s.charCount}>{topic.length}/500</Text>
+                {topic.length > 0 && (
+                  <Pressable onPress={() => setTopic("")}>
+                    <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
+                  </Pressable>
+                )}
+              </View>
+            </View>
+
+            {/* Suggestions */}
+            <Text style={s.sectionLabel}>Topik Populer</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.suggestionsRow}>
+              {SUGGESTIONS.map((sg) => (
+                <Pressable
+                  key={sg}
+                  style={s.chip}
+                  onPress={() => { setTopic(sg); Haptics.selectionAsync(); inputRef.current?.focus(); }}
+                >
+                  <Text style={s.chipText}>{sg}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </>
+        ) : (
+          <>
+            {/* Photo mode */}
+            {photos.length > 0 && (
+              <View style={s.photoGrid}>
+                {photos.map((p, i) => (
+                  <View key={i} style={s.photoThumb}>
+                    <Image source={{ uri: p.uri }} style={s.photoImg} resizeMode="cover" />
+                    <Pressable style={s.photoRemove} onPress={() => removePhoto(i)}>
+                      <Ionicons name="close" size={12} color="#fff" />
+                    </Pressable>
+                  </View>
+                ))}
+                {photos.length < 8 && (
+                  <Pressable style={s.photoAdd} onPress={pickFromGallery}>
+                    <Ionicons name="add" size={22} color={colors.mutedForeground} />
+                    <Text style={s.photoAddText}>Tambah</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+
+            <View style={s.photoBtns}>
+              <Pressable style={s.photoBtn} onPress={pickFromCamera}>
+                <Ionicons name="camera-outline" size={18} color={colors.foreground} />
+                <Text style={s.photoBtnText}>Kamera</Text>
+              </Pressable>
+              <Pressable style={s.photoBtn} onPress={pickFromGallery}>
+                <Ionicons name="images-outline" size={18} color={colors.foreground} />
+                <Text style={s.photoBtnText}>Galeri</Text>
+              </Pressable>
+            </View>
+
+            <Text style={s.photoHint}>
+              {photos.length === 0
+                ? "Ambil foto benda nyata atau pilih dari galeri (maks. 8 foto)"
+                : `${photos.length} foto dipilih — tambahkan label opsional di bawah`}
+            </Text>
+
+            {/* Optional label */}
+            <View style={[s.inputCard, inputFocused && s.inputCardFocused, { marginTop: 12 }]}>
+              <TextInput
+                ref={inputRef}
+                style={[s.input, { minHeight: 46 }]}
+                placeholder="Label opsional… cth: Kupu-kupu, Sel Darah"
+                placeholderTextColor={colors.mutedForeground}
+                value={topic}
+                onChangeText={setTopic}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                maxLength={200}
+              />
+            </View>
+          </>
+        )}
 
         {/* Level */}
         <Text style={s.sectionLabel}>Tingkat</Text>
@@ -222,28 +443,16 @@ export default function CreateScreen() {
           ))}
         </View>
 
-        {/* Suggestions */}
-        <Text style={s.sectionLabel}>Topik Populer</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.suggestionsRow}>
-          {SUGGESTIONS.map((s_) => (
-            <Pressable
-              key={s_}
-              style={s.chip}
-              onPress={() => { setTopic(s_); Haptics.selectionAsync(); inputRef.current?.focus(); }}
-            >
-              <Text style={s.chipText}>{s_}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
         {/* Generate button */}
         <Pressable
-          style={[s.generateBtn, (!topic.trim() || loading) && s.generateBtnDisabled]}
-          onPress={onGenerate}
-          disabled={!topic.trim() || loading}
+          style={[s.generateBtn, (!canGenerate || loading) && s.generateBtnDisabled]}
+          onPress={mode === "topic" ? onGenerateTopic : onGeneratePhoto}
+          disabled={!canGenerate || loading}
         >
           <Ionicons name="cube-outline" size={20} color="#fff" />
-          <Text style={s.generateText}>Buat Materi 3D</Text>
+          <Text style={s.generateText}>
+            {mode === "topic" ? "Buat Materi 3D" : "Buat dari Foto"}
+          </Text>
         </Pressable>
 
         {/* Error */}
