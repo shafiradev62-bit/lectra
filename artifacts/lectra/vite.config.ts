@@ -66,6 +66,19 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    proxy: {
+      // Forward AR3D backend calls in dev — avoids Mixed Content + CORS issues.
+      // Falls back gracefully (502) when the backend is offline.
+      "/api/ar3d": {
+        target: process.env["AR3D_BACKEND"] ?? process.env["VITE_AR3D_BACKEND"] ?? "http://localhost:8000",
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/ar3d/, ""),
+        timeout: 120000,
+        configure: (_proxy, _options) => {
+          // Silently swallow connection refused — backend is optional
+        },
+      },
+    },
   },
   preview: {
     port,
