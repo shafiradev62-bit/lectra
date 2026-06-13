@@ -1,0 +1,21 @@
+kind = "mobile"
+previewPath = "/lectra-mobile/"
+title = "Lectra Mobile"
+version = "1.0.0"
+id = "artifacts/lectra-mobile"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+name = "mobile"
+paths = ["/lectra-mobile/"]
+localPort = 8082
+
+[services.env]
+PORT = "8082"
+BASE_PATH = "/lectra-mobile/"
+
+[services.development]
+run = "pnpm --filter @workspace/lectra-mobile run dev"
