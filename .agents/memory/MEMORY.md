@@ -1,0 +1,2 @@
+- [Lectra wouter routing](lectra-wouter.md) — wouter Link uses href= not to=; no asChild; navigate via useLocation setLocation
+- [Lectra package setup](lectra-packages.md) — motion/react, animejs, qrcode, @react-three/fiber, @react-three/drei, three must be installed in artifacts/lectra
