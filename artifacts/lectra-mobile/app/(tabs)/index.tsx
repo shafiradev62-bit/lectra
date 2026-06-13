@@ -10,6 +10,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useColors } from "@/hooks/useColors";
 import { generateLocalLesson } from "@/lib/lesson-generator";
+import { generateFromPhotos } from "@/lib/ar3d-client";
 import { saveLesson, listLessons, type StoredLesson } from "@/lib/lesson-storage";
 import ShapeIcon from "@/components/ShapeIcon";
 
@@ -43,10 +44,15 @@ export default function CreateScreen() {
 
   useFocusEffect(useCallback(() => { loadRecent(); }, [loadRecent]));
 
-  const steps = [
+  const topicSteps = [
     "Menganalisis topik…", "Menyusun konten…",
     "Membangun model 3D…", "Selesai!",
   ];
+  const photoSteps = [
+    "Mengunggah foto…", "Memproses gambar…",
+    "Membangun model 3D…", "Menyusun materi…", "Selesai!",
+  ];
+  const steps = mode === "photo" ? photoSteps : topicSteps;
 
   useEffect(() => {
     if (!loading) { setLoadingStep(0); return; }
@@ -122,9 +128,11 @@ export default function CreateScreen() {
     setLoading(true);
     setError(null);
     try {
-      // Local-first: derive topic from the user label or a default, then generate
       const label = topic.trim() || "Objek 3D Scan";
-      const lesson = await generateLocalLesson(label, "id", level);
+      // Attempt photogrammetry via the AR3D backend; fall back gracefully if offline
+      const mode3d = photos.length >= 4 ? "photogrammetry" : "single_image";
+      const model = await generateFromPhotos(photos.map((p) => p.uri), mode3d);
+      const lesson = await generateLocalLesson(label, "id", level, model ?? undefined);
       const saved = await saveLesson(label, lesson);
       setPhotos([]);
       setTopic("");

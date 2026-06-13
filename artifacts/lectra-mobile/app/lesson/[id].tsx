@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet, Pressable,
-  Platform, ActivityIndicator, Share,
+  Platform, ActivityIndicator, Share, Linking,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -174,6 +174,20 @@ export default function LessonScreen() {
       fontFamily: "PlusJakartaSans_700Bold",
     },
     shapeCardType: { fontSize: 10, color: colors.mutedForeground, textTransform: "capitalize" },
+    shapeCardBadge: {
+      paddingHorizontal: 6, paddingVertical: 2,
+      borderRadius: 100,
+      backgroundColor: colors.accent + "22",
+    },
+    shapeCardBadgeText: { fontSize: 9, color: colors.accent, fontWeight: "700" },
+    modelBtn: {
+      marginHorizontal: 16, marginBottom: 4,
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+      paddingVertical: 12, borderRadius: 100,
+      borderWidth: 1.5, borderColor: colors.accent,
+      backgroundColor: colors.accent + "0D",
+    },
+    modelBtnText: { fontSize: 14, fontWeight: "700", color: colors.accent },
     shareBtn: { padding: 6 },
   });
 
@@ -286,26 +300,49 @@ export default function LessonScreen() {
         ))}
 
         {/* 3D Model Gallery */}
-        {(lesson.sections?.length ?? 0) > 0 && (
-          <>
-            <View style={s.blockHeader}>
-              <Text style={s.blockHeaderText}>Model 3D</Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.shapeScroll}>
-              {lesson.sections.map((sec, i) => (
-                <View key={i} style={s.shapeCard}>
-                  <ShapeIcon
-                    type={sec.shape?.type ?? "sphere"}
-                    color={sec.shape?.color ?? colors.accent}
-                    size={56}
-                  />
-                  <Text style={s.shapeCardLabel} numberOfLines={2}>{sec.shape?.label ?? sec.heading}</Text>
-                  <Text style={s.shapeCardType}>{sec.shape?.type}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </>
-        )}
+        {(lesson.sections?.length ?? 0) > 0 && (() => {
+          const modelUrl = lesson.sections.find((sec) => sec.shape?.modelUrl)?.shape?.modelUrl;
+          const firstShape = lesson.sections[0]?.shape;
+          const hasVertices = (firstShape?.vertexCount ?? 0) > 0;
+          return (
+            <>
+              <View style={s.blockHeader}>
+                <Text style={s.blockHeaderText}>
+                  Model 3D{modelUrl ? " · Tersedia" : ""}
+                </Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.shapeScroll}>
+                {lesson.sections.map((sec, i) => (
+                  <View key={i} style={s.shapeCard}>
+                    <ShapeIcon
+                      type={sec.shape?.type ?? "sphere"}
+                      color={sec.shape?.color ?? colors.accent}
+                      size={56}
+                    />
+                    <Text style={s.shapeCardLabel} numberOfLines={2}>{sec.shape?.label ?? sec.heading}</Text>
+                    <Text style={s.shapeCardType}>{sec.shape?.type}</Text>
+                    {sec.shape?.modelSource && (
+                      <View style={s.shapeCardBadge}>
+                        <Text style={s.shapeCardBadgeText}>3D</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+              {modelUrl && (
+                <Pressable
+                  style={({ pressed }) => [s.modelBtn, { opacity: pressed ? 0.75 : 1 }]}
+                  onPress={() => Linking.openURL(modelUrl)}
+                >
+                  <Ionicons name="cube-outline" size={18} color={colors.accent} />
+                  <Text style={s.modelBtnText}>
+                    Buka Model 3D{hasVertices ? ` · ${firstShape!.vertexCount!.toLocaleString()} vertices` : ""}
+                  </Text>
+                </Pressable>
+              )}
+            </>
+          );
+        })()}
 
         {/* Vocabulary */}
         {(lesson.vocabulary?.length ?? 0) > 0 && (

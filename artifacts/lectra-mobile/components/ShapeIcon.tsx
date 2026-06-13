@@ -15,6 +15,7 @@ const SHAPE_ICONS: Record<ShapeType, keyof typeof Ionicons.glyphMap> = {
   molecule: "apps-outline",
   terrain: "earth-outline",
   star: "star-outline",
+  replicate: "reload-outline",
 };
 
 interface Props {

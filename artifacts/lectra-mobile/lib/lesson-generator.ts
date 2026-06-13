@@ -1,6 +1,6 @@
 export type ShapeType =
   | "sphere" | "cube" | "torus" | "cone" | "cylinder"
-  | "icosahedron" | "dodecahedron" | "organic" | "molecule" | "terrain" | "star";
+  | "icosahedron" | "dodecahedron" | "organic" | "molecule" | "terrain" | "star" | "replicate";
 
 export interface LessonShape {
   type: ShapeType;
@@ -8,6 +8,10 @@ export interface LessonShape {
   scale: number;
   detail: number;
   label: string;
+  modelUrl?: string;
+  vertexCount?: number;
+  faceCount?: number;
+  modelSource?: string;
 }
 
 export interface LessonSection {
@@ -344,6 +348,10 @@ export function normalizeLesson(raw: Partial<Lesson>): Lesson {
         scale: 1,
         detail: 1,
         label: s?.shape?.label || s?.heading || "Shape",
+        modelUrl: s?.shape?.modelUrl,
+        vertexCount: s?.shape?.vertexCount,
+        faceCount: s?.shape?.faceCount,
+        modelSource: s?.shape?.modelSource,
       },
     })),
     vocabulary: (r.vocabulary || []).slice(0, 8).map((v) => ({
@@ -364,10 +372,34 @@ export function normalizeLesson(raw: Partial<Lesson>): Lesson {
 
 // ── Main generator ─────────────────────────────────────────────────────────────
 
+export type ExternalModel = { url: string; vertices: number; faces: number; source: string };
+
+/**
+ * Apply a generated 3D model to sections.
+ * The first section gets the full model; remaining sections inherit the URL so
+ * the viewer can surface an "Open Model" button for the lesson overall.
+ */
+function applyExternalModel(
+  sections: Partial<LessonSection>[],
+  model: ExternalModel,
+): Partial<LessonSection>[] {
+  return sections.map((s, i) => ({
+    ...s,
+    shape: {
+      ...s.shape!,
+      modelUrl: model.url,
+      vertexCount: i === 0 ? model.vertices : undefined,
+      faceCount: i === 0 ? model.faces : undefined,
+      modelSource: model.source,
+    },
+  }));
+}
+
 export async function generateLocalLesson(
   topic: string,
   locale: "id" | "en",
-  level: string
+  level: string,
+  externalModel?: ExternalModel,
 ): Promise<Lesson> {
   const norm = topic.toLowerCase().trim();
   const match = DB.find((entry) => entry.keys.some((k) => norm.includes(k) || k.includes(norm)));
@@ -375,18 +407,20 @@ export async function generateLocalLesson(
   if (match) {
     const loc = locale === "en" ? match.def.en : match.def.id;
     const [c1, c2, c3] = match.def.colors;
+    let sections: Partial<LessonSection>[] = loc.sections.map((s, i) => ({
+      heading: s.heading,
+      body: s.body,
+      bullets: s.bullets,
+      shape: { type: match.def.shape, color: [c1, c2, c3][i % 3], scale: 1, detail: 1, label: s.shapeLabel },
+    }));
+    if (externalModel) sections = applyExternalModel(sections, externalModel);
     return normalizeLesson({
       title: loc.title,
       subtitle: loc.subtitle,
       level,
       duration: "25 min",
       intro: loc.intro,
-      sections: loc.sections.map((s, i) => ({
-        heading: s.heading,
-        body: s.body,
-        bullets: s.bullets,
-        shape: { type: match.def.shape, color: [c1, c2, c3][i % 3], scale: 1, detail: 1, label: s.shapeLabel },
-      })),
+      sections: sections as LessonSection[],
       vocabulary: loc.vocab,
       quiz: loc.quiz.map((q) => ({ question: q.q, options: q.opts, correctIndex: q.ci, explanation: q.exp })),
     });
@@ -396,6 +430,39 @@ export async function generateLocalLesson(
   const isEn = locale === "en";
   const colors = ["#f5c542", "#88b8e8", "#a8d89a"];
   const shapes: ShapeType[] = ["sphere", "cube", "torus"];
+  let fallbackSections: Partial<LessonSection>[] = [
+    {
+      heading: isEn ? "Core Concepts" : "Konsep Dasar",
+      body: isEn ? `${topic} covers fundamental principles that form the basis of scientific understanding.` : `${topic} mencakup prinsip-prinsip dasar yang membentuk pemahaman ilmiah.`,
+      bullets: [
+        isEn ? "Definition and basic principles" : "Definisi dan prinsip dasar",
+        isEn ? "Historical development" : "Perkembangan historis",
+        isEn ? "Key terminology" : "Terminologi kunci",
+      ],
+      shape: { type: shapes[0], color: colors[0], scale: 1, detail: 1, label: isEn ? "Core" : "Inti" },
+    },
+    {
+      heading: isEn ? "Key Principles" : "Prinsip Utama",
+      body: isEn ? `The fundamental laws and patterns governing ${topic}.` : `Hukum dan pola yang mengatur ${topic}.`,
+      bullets: [
+        isEn ? "Fundamental laws and patterns" : "Hukum dan pola fundamental",
+        isEn ? "Cause and effect relationships" : "Hubungan sebab akibat",
+        isEn ? "How conditions affect behavior" : "Pengaruh kondisi terhadap perilaku",
+      ],
+      shape: { type: shapes[1], color: colors[1], scale: 1, detail: 1, label: isEn ? "Principles" : "Prinsip" },
+    },
+    {
+      heading: isEn ? "Real-World Applications" : "Aplikasi Nyata",
+      body: isEn ? `${topic} has practical applications in technology, medicine, and daily life.` : `${topic} memiliki aplikasi praktis di teknologi, kedokteran, dan kehidupan sehari-hari.`,
+      bullets: [
+        isEn ? "Technology applications" : "Penerapan di teknologi",
+        isEn ? "Connections to other subjects" : "Hubungan dengan mata pelajaran lain",
+        isEn ? "Future research directions" : "Arah penelitian masa depan",
+      ],
+      shape: { type: shapes[2], color: colors[2], scale: 1, detail: 1, label: isEn ? "Applications" : "Aplikasi" },
+    },
+  ];
+  if (externalModel) fallbackSections = applyExternalModel(fallbackSections, externalModel);
   return normalizeLesson({
     title: isEn ? topic : topic,
     subtitle: isEn ? `An introduction to ${topic}` : `Pengantar ${topic}`,
@@ -404,38 +471,7 @@ export async function generateLocalLesson(
     intro: isEn
       ? `${topic} is a fascinating subject with deep connections to science and everyday life.`
       : `${topic} adalah topik yang menarik dengan koneksi mendalam ke sains dan kehidupan sehari-hari.`,
-    sections: [
-      {
-        heading: isEn ? "Core Concepts" : "Konsep Dasar",
-        body: isEn ? `${topic} covers fundamental principles that form the basis of scientific understanding.` : `${topic} mencakup prinsip-prinsip dasar yang membentuk pemahaman ilmiah.`,
-        bullets: [
-          isEn ? "Definition and basic principles" : "Definisi dan prinsip dasar",
-          isEn ? "Historical development" : "Perkembangan historis",
-          isEn ? "Key terminology" : "Terminologi kunci",
-        ],
-        shape: { type: shapes[0], color: colors[0], scale: 1, detail: 1, label: isEn ? "Core" : "Inti" },
-      },
-      {
-        heading: isEn ? "Key Principles" : "Prinsip Utama",
-        body: isEn ? `The fundamental laws and patterns governing ${topic}.` : `Hukum dan pola yang mengatur ${topic}.`,
-        bullets: [
-          isEn ? "Fundamental laws and patterns" : "Hukum dan pola fundamental",
-          isEn ? "Cause and effect relationships" : "Hubungan sebab akibat",
-          isEn ? "How conditions affect behavior" : "Pengaruh kondisi terhadap perilaku",
-        ],
-        shape: { type: shapes[1], color: colors[1], scale: 1, detail: 1, label: isEn ? "Principles" : "Prinsip" },
-      },
-      {
-        heading: isEn ? "Real-World Applications" : "Aplikasi Nyata",
-        body: isEn ? `${topic} has practical applications in technology, medicine, and daily life.` : `${topic} memiliki aplikasi praktis di teknologi, kedokteran, dan kehidupan sehari-hari.`,
-        bullets: [
-          isEn ? "Technology applications" : "Penerapan di teknologi",
-          isEn ? "Connections to other subjects" : "Hubungan dengan mata pelajaran lain",
-          isEn ? "Future research directions" : "Arah penelitian masa depan",
-        ],
-        shape: { type: shapes[2], color: colors[2], scale: 1, detail: 1, label: isEn ? "Applications" : "Aplikasi" },
-      },
-    ],
+    sections: fallbackSections as LessonSection[],
     vocabulary: [
       { term: topic, meaning: isEn ? "The central concept of this lesson." : "Konsep utama dari pelajaran ini." },
       { term: isEn ? "Principle" : "Prinsip", meaning: isEn ? "A fundamental rule or law." : "Aturan atau hukum dasar." },
