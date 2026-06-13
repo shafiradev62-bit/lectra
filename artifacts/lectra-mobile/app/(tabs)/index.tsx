@@ -10,7 +10,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useColors } from "@/hooks/useColors";
 import { generateLocalLesson } from "@/lib/lesson-generator";
-import { generateFromPhotos } from "@/lib/ar3d-client";
+import { scanImageForTopic } from "@/lib/vision-client";
 import { saveLesson, listLessons, type StoredLesson } from "@/lib/lesson-storage";
 import ShapeIcon from "@/components/ShapeIcon";
 
@@ -29,7 +29,12 @@ export default function CreateScreen() {
   const [mode, setMode] = useState<CreateMode>("topic");
   const [topic, setTopic] = useState("");
   const [level, setLevel] = useState("SMP");
-  const [photos, setPhotos] = useState<{ uri: string; name: string }[]>([]);
+
+  // Photo mode state
+  const [scannedPhoto, setScannedPhoto] = useState<{ uri: string; base64?: string } | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [detectedTopic, setDetectedTopic] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -49,8 +54,8 @@ export default function CreateScreen() {
     "Membangun model 3D…", "Selesai!",
   ];
   const photoSteps = [
-    "Mengunggah foto…", "Memproses gambar…",
-    "Membangun model 3D…", "Menyusun materi…", "Selesai!",
+    "Membaca gambar…", "Menganalisis konten…",
+    "Menyusun materi…", "Membangun model 3D…", "Selesai!",
   ];
   const steps = mode === "photo" ? photoSteps : topicSteps;
 
@@ -60,27 +65,28 @@ export default function CreateScreen() {
     return () => clearInterval(id);
   }, [loading]);
 
-  // ── Photo picker ─────────────────────────────────────────────────────────────
+  // ── Photo capture + vision scan ──────────────────────────────────────────────
 
-  async function pickFromGallery() {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      setError("Izin galeri diperlukan untuk memilih foto.");
+  async function runVisionScan(uri: string, base64?: string) {
+    if (!base64) {
+      setScannedPhoto({ uri });
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "images",
-      allowsMultipleSelection: true,
-      quality: 0.8,
-      selectionLimit: 8 - photos.length,
-    });
-    if (!result.canceled) {
-      const newPhotos = result.assets.map((a) => ({
-        uri: a.uri,
-        name: a.fileName ?? `photo_${Date.now()}.jpg`,
-      }));
-      setPhotos((prev) => [...prev, ...newPhotos].slice(0, 8));
-      Haptics.selectionAsync();
+    setScannedPhoto({ uri, base64 });
+    setScanning(true);
+    setDetectedTopic(null);
+    setTopic("");
+    try {
+      const result = await scanImageForTopic(base64, "image/jpeg");
+      if (result.confidence !== "none" && result.topic.trim()) {
+        setDetectedTopic(result.topic.trim());
+        setTopic(result.topic.trim());
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch {
+      // silently ignore — teacher types manually
+    } finally {
+      setScanning(false);
     }
   }
 
@@ -90,17 +96,39 @@ export default function CreateScreen() {
       setError("Izin kamera diperlukan untuk mengambil foto.");
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+      base64: true,
+    });
     if (!result.canceled) {
-      setPhotos((prev) =>
-        [...prev, { uri: result.assets[0].uri, name: `photo_${Date.now()}.jpg` }].slice(0, 8)
-      );
+      const asset = result.assets[0];
       Haptics.selectionAsync();
+      await runVisionScan(asset.uri, asset.base64 ?? undefined);
     }
   }
 
-  function removePhoto(idx: number) {
-    setPhotos((prev) => prev.filter((_, i) => i !== idx));
+  async function pickFromGallery() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      setError("Izin galeri diperlukan untuk memilih foto.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      quality: 0.7,
+      base64: true,
+    });
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      Haptics.selectionAsync();
+      await runVisionScan(asset.uri, asset.base64 ?? undefined);
+    }
+  }
+
+  function clearPhoto() {
+    setScannedPhoto(null);
+    setDetectedTopic(null);
+    setTopic("");
   }
 
   // ── Generate ─────────────────────────────────────────────────────────────────
@@ -122,20 +150,16 @@ export default function CreateScreen() {
     }
   }
 
-  async function onGeneratePhoto() {
-    if (photos.length === 0 || loading) return;
+  async function onGenerateFromPhoto() {
+    const effectiveTopic = topic.trim();
+    if (!effectiveTopic || !scannedPhoto || loading) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
     setError(null);
     try {
-      const label = topic.trim() || "Objek 3D Scan";
-      // Attempt photogrammetry via the AR3D backend; fall back gracefully if offline
-      const mode3d = photos.length >= 4 ? "photogrammetry" : "single_image";
-      const model = await generateFromPhotos(photos.map((p) => p.uri), mode3d);
-      const lesson = await generateLocalLesson(label, "id", level, model ?? undefined);
-      const saved = await saveLesson(label, lesson);
-      setPhotos([]);
-      setTopic("");
+      const lesson = await generateLocalLesson(effectiveTopic, "id", level);
+      const saved = await saveLesson(effectiveTopic, lesson);
+      clearPhoto();
       router.push(`/lesson/${saved.id}` as any);
     } catch {
       setError("Gagal membuat materi dari foto. Coba lagi.");
@@ -197,46 +221,76 @@ export default function CreateScreen() {
       paddingHorizontal: 14, paddingVertical: 10,
     },
     charCount: { fontSize: 12, color: colors.mutedForeground },
-    photoGrid: {
-      flexDirection: "row", flexWrap: "wrap", gap: 8,
+
+    // Photo scan UI
+    photoScanArea: {
       marginHorizontal: 16, marginTop: 14,
     },
-    photoThumb: {
-      width: 80, height: 80, borderRadius: 12,
-      overflow: "hidden", position: "relative",
+    photoPreviewCard: {
+      borderRadius: 20, overflow: "hidden",
+      borderWidth: 1.5, borderColor: colors.border,
+      backgroundColor: colors.card,
+      position: "relative",
     },
-    photoImg: { width: 80, height: 80 },
-    photoRemove: {
-      position: "absolute", top: 4, right: 4,
-      width: 20, height: 20, borderRadius: 10,
+    photoPreviewImg: {
+      width: "100%", height: 200,
+    },
+    photoOverlayBar: {
+      position: "absolute", bottom: 0, left: 0, right: 0,
+      backgroundColor: "rgba(0,0,0,0.55)",
+      paddingHorizontal: 14, paddingVertical: 10,
+      flexDirection: "row", alignItems: "center", gap: 8,
+    },
+    photoOverlayText: { flex: 1, fontSize: 12, color: "#fff" },
+    clearPhotoBtn: {
+      position: "absolute", top: 10, right: 10,
+      width: 30, height: 30, borderRadius: 15,
       backgroundColor: "rgba(0,0,0,0.55)",
       alignItems: "center", justifyContent: "center",
     },
-    photoAdd: {
-      width: 80, height: 80, borderRadius: 12,
-      backgroundColor: colors.muted,
-      borderWidth: 1.5, borderColor: colors.border,
-      borderStyle: "dashed",
-      alignItems: "center", justifyContent: "center", gap: 4,
-    },
-    photoAddText: { fontSize: 10, color: colors.mutedForeground },
-    photoBtns: {
-      flexDirection: "row", gap: 8,
+    scanningBadge: {
       marginHorizontal: 16, marginTop: 10,
+      flexDirection: "row", alignItems: "center", gap: 8,
+      paddingHorizontal: 14, paddingVertical: 9,
+      borderRadius: 100,
+      backgroundColor: colors.accent + "18",
+      borderWidth: 1.5, borderColor: colors.accent + "40",
+      alignSelf: "flex-start",
     },
-    photoBtn: {
+    scanningText: { fontSize: 13, color: colors.accent, fontWeight: "600" },
+    detectedBadge: {
+      marginHorizontal: 16, marginTop: 10,
+      flexDirection: "row", alignItems: "center", gap: 6,
+      paddingHorizontal: 12, paddingVertical: 7,
+      borderRadius: 100,
+      backgroundColor: "#22c55e18",
+      borderWidth: 1.5, borderColor: "#22c55e40",
+      alignSelf: "flex-start",
+    },
+    detectedText: { fontSize: 12, color: "#22c55e", fontWeight: "600" },
+    pickBtns: {
+      flexDirection: "row", gap: 10,
+    },
+    pickBtn: {
       flex: 1, flexDirection: "row", alignItems: "center",
-      justifyContent: "center", gap: 6,
-      paddingVertical: 11, borderRadius: 100,
+      justifyContent: "center", gap: 8,
+      paddingVertical: 18, borderRadius: 20,
       borderWidth: 1.5, borderColor: colors.border,
       backgroundColor: colors.card,
     },
-    photoBtnText: { fontSize: 13, fontWeight: "600", color: colors.foreground },
+    pickBtnText: { fontSize: 14, fontWeight: "600", color: colors.foreground },
+    pickBtnSub: { fontSize: 11, color: colors.mutedForeground, marginTop: 2 },
     photoHint: {
-      marginHorizontal: 16, marginTop: 8,
-      fontSize: 12, color: colors.mutedForeground,
+      marginTop: 12, fontSize: 12, color: colors.mutedForeground,
       textAlign: "center",
     },
+    confirmLabel: {
+      marginHorizontal: 16, marginTop: 16,
+      fontSize: 12, fontWeight: "700",
+      color: colors.mutedForeground,
+      letterSpacing: 0.8, textTransform: "uppercase",
+    },
+
     sectionLabel: {
       paddingHorizontal: 20, marginTop: 18, marginBottom: 8,
       fontSize: 12, fontWeight: "700",
@@ -299,7 +353,9 @@ export default function CreateScreen() {
     loadingText: { fontSize: 16, color: colors.foreground },
   });
 
-  const canGenerate = mode === "topic" ? topic.trim().length > 0 : photos.length > 0;
+  const canGenerate = mode === "topic"
+    ? topic.trim().length > 0
+    : Boolean(scannedPhoto && topic.trim().length > 0);
 
   return (
     <KeyboardAvoidingView
@@ -328,7 +384,7 @@ export default function CreateScreen() {
               onPress={() => { setMode(m); setError(null); Haptics.selectionAsync(); }}
             >
               <Ionicons
-                name={m === "topic" ? "text-outline" : "camera-outline"}
+                name={m === "topic" ? "text-outline" : "scan-outline"}
                 size={15}
                 color={mode === m ? colors.foreground : colors.mutedForeground}
               />
@@ -383,57 +439,109 @@ export default function CreateScreen() {
           </>
         ) : (
           <>
-            {/* Photo mode */}
-            {photos.length > 0 && (
-              <View style={s.photoGrid}>
-                {photos.map((p, i) => (
-                  <View key={i} style={s.photoThumb}>
-                    <Image source={{ uri: p.uri }} style={s.photoImg} resizeMode="cover" />
-                    <Pressable style={s.photoRemove} onPress={() => removePhoto(i)}>
-                      <Ionicons name="close" size={12} color="#fff" />
+            {/* Photo scan mode */}
+            <View style={s.photoScanArea}>
+              {scannedPhoto ? (
+                /* ── Photo preview + extracted topic ── */
+                <>
+                  <View style={s.photoPreviewCard}>
+                    <Image
+                      source={{ uri: scannedPhoto.uri }}
+                      style={s.photoPreviewImg}
+                      resizeMode="cover"
+                    />
+                    {scanning && (
+                      <View style={s.photoOverlayBar}>
+                        <ActivityIndicator size="small" color="#fff" />
+                        <Text style={s.photoOverlayText}>Membaca gambar…</Text>
+                      </View>
+                    )}
+                    <Pressable style={s.clearPhotoBtn} onPress={clearPhoto}>
+                      <Ionicons name="close" size={16} color="#fff" />
                     </Pressable>
                   </View>
-                ))}
-                {photos.length < 8 && (
-                  <Pressable style={s.photoAdd} onPress={pickFromGallery}>
-                    <Ionicons name="add" size={22} color={colors.mutedForeground} />
-                    <Text style={s.photoAddText}>Tambah</Text>
-                  </Pressable>
-                )}
-              </View>
+
+                  {scanning && (
+                    <View style={s.scanningBadge}>
+                      <ActivityIndicator size="small" color={colors.accent} />
+                      <Text style={s.scanningText}>Menganalisis foto…</Text>
+                    </View>
+                  )}
+
+                  {!scanning && detectedTopic && (
+                    <View style={s.detectedBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
+                      <Text style={s.detectedText}>Topik terdeteksi</Text>
+                    </View>
+                  )}
+
+                  {!scanning && !detectedTopic && (
+                    <Text style={s.photoHint}>
+                      Ketik topik yang terlihat pada foto di bawah
+                    </Text>
+                  )}
+                </>
+              ) : (
+                /* ── Pick photo buttons ── */
+                <>
+                  <View style={s.pickBtns}>
+                    <Pressable style={s.pickBtn} onPress={pickFromCamera}>
+                      <View style={{ alignItems: "center", gap: 4 }}>
+                        <Ionicons name="camera-outline" size={28} color={colors.accent} />
+                        <Text style={s.pickBtnText}>Kamera</Text>
+                        <Text style={s.pickBtnSub}>Foto halaman buku</Text>
+                      </View>
+                    </Pressable>
+                    <Pressable style={s.pickBtn} onPress={pickFromGallery}>
+                      <View style={{ alignItems: "center", gap: 4 }}>
+                        <Ionicons name="images-outline" size={28} color={colors.accent} />
+                        <Text style={s.pickBtnText}>Galeri</Text>
+                        <Text style={s.pickBtnSub}>Pilih dari foto</Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                  <Text style={s.photoHint}>
+                    Foto halaman buku, papan tulis, atau diagram — topik otomatis terdeteksi
+                  </Text>
+                </>
+              )}
+            </View>
+
+            {/* Topic confirm / type input — shown once photo is picked */}
+            {scannedPhoto && !scanning && (
+              <>
+                <Text style={s.confirmLabel}>
+                  {detectedTopic ? "Konfirmasi Topik" : "Topik Pelajaran"}
+                </Text>
+                <View style={[s.inputCard, inputFocused && s.inputCardFocused]}>
+                  <TextInput
+                    ref={inputRef}
+                    style={s.input}
+                    placeholder="Ketik atau konfirmasi topik…"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={topic}
+                    onChangeText={(t) => {
+                      setTopic(t);
+                      if (detectedTopic && t !== detectedTopic) setDetectedTopic(null);
+                    }}
+                    onFocus={() => setInputFocused(true)}
+                    onBlur={() => setInputFocused(false)}
+                    multiline
+                    maxLength={500}
+                    returnKeyType="done"
+                  />
+                  <View style={s.inputDivider} />
+                  <View style={s.inputFooter}>
+                    <Text style={s.charCount}>{topic.length}/500</Text>
+                    {topic.length > 0 && (
+                      <Pressable onPress={() => { setTopic(""); setDetectedTopic(null); }}>
+                        <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              </>
             )}
-
-            <View style={s.photoBtns}>
-              <Pressable style={s.photoBtn} onPress={pickFromCamera}>
-                <Ionicons name="camera-outline" size={18} color={colors.foreground} />
-                <Text style={s.photoBtnText}>Kamera</Text>
-              </Pressable>
-              <Pressable style={s.photoBtn} onPress={pickFromGallery}>
-                <Ionicons name="images-outline" size={18} color={colors.foreground} />
-                <Text style={s.photoBtnText}>Galeri</Text>
-              </Pressable>
-            </View>
-
-            <Text style={s.photoHint}>
-              {photos.length === 0
-                ? "Ambil foto benda nyata atau pilih dari galeri (maks. 8 foto)"
-                : `${photos.length} foto dipilih — tambahkan label opsional di bawah`}
-            </Text>
-
-            {/* Optional label */}
-            <View style={[s.inputCard, inputFocused && s.inputCardFocused, { marginTop: 12 }]}>
-              <TextInput
-                ref={inputRef}
-                style={[s.input, { minHeight: 46 }]}
-                placeholder="Label opsional… cth: Kupu-kupu, Sel Darah"
-                placeholderTextColor={colors.mutedForeground}
-                value={topic}
-                onChangeText={setTopic}
-                onFocus={() => setInputFocused(true)}
-                onBlur={() => setInputFocused(false)}
-                maxLength={200}
-              />
-            </View>
           </>
         )}
 
@@ -454,12 +562,16 @@ export default function CreateScreen() {
         {/* Generate button */}
         <Pressable
           style={[s.generateBtn, (!canGenerate || loading) && s.generateBtnDisabled]}
-          onPress={mode === "topic" ? onGenerateTopic : onGeneratePhoto}
-          disabled={!canGenerate || loading}
+          onPress={mode === "topic" ? onGenerateTopic : onGenerateFromPhoto}
+          disabled={!canGenerate || loading || (mode === "photo" && scanning)}
         >
-          <Ionicons name="cube-outline" size={20} color="#fff" />
+          <Ionicons
+            name={mode === "photo" ? "sparkles-outline" : "cube-outline"}
+            size={20}
+            color="#fff"
+          />
           <Text style={s.generateText}>
-            {mode === "topic" ? "Buat Materi 3D" : "Buat dari Foto"}
+            {mode === "photo" ? "Buat Materi dari Foto" : "Buat Materi 3D"}
           </Text>
         </Pressable>
 
