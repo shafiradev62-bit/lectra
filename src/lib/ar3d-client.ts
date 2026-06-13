@@ -1,12 +1,24 @@
 /**
  * AR3D Engine client — production 3D generation for Lectra.
- * Connects to Lectra backend (port 8000) which runs semantic mesh + AR3D pipeline.
+ * In production (Vercel HTTPS) we route via /api/ar3d proxy to avoid
+ * Mixed Content errors with the HTTP VPS backend.
  */
 
-const BACKEND =
-  typeof import.meta !== "undefined" && import.meta.env?.VITE_AR3D_BACKEND
-    ? import.meta.env.VITE_AR3D_BACKEND
-    : "http://localhost:8000";
+// In browser production: use same-origin proxy. In SSR / dev: hit VPS directly.
+function getBackend(): string {
+  if (typeof window !== "undefined") {
+    // Browser: always use the same-origin proxy so no Mixed Content
+    return "/api/ar3d";
+  }
+  // SSR / Node: direct VPS call is fine
+  return (
+    (typeof import.meta !== "undefined" && import.meta.env?.VITE_AR3D_BACKEND) ||
+    process.env["VITE_AR3D_BACKEND"] ||
+    "http://localhost:8000"
+  );
+}
+
+const BACKEND = getBackend();
 
 const BATCH_TIMEOUT_MS = 120_000;
 const PHOTO_TIMEOUT_MS = 600_000;
@@ -77,8 +89,21 @@ export async function generate3DModelBatch(
         typeof r.vertices === "number"
           ? r.vertices
           : parseInt(String(r.vertices || "0").replace(/,/g, ""), 10) || 0;
+
+      // Rewrite absolute VPS URL to same-origin proxy URL so browser can load
+      // the GLB without Mixed Content errors
+      let url = r.fileUrl;
+      if (typeof window !== "undefined" && url.match(/^https?:\/\//)) {
+        try {
+          const parsed = new URL(url);
+          url = `/api/ar3d${parsed.pathname}`;
+        } catch {
+          // keep original if parsing fails
+        }
+      }
+
       return {
-        url: r.fileUrl,
+        url,
         vertices: verts,
         faces: r.faces ?? 0,
         source: r.source ?? "ar3d",
