@@ -2,6 +2,14 @@
  * AR3D proxy — forwards /ar3d/* requests to the external AR3D backend.
  * Keeps the browser free of Mixed Content errors when the VPS speaks HTTP.
  *
+ * Body forwarding strategy:
+ *   - JSON / urlencoded: express.json() and express.urlencoded() in app.ts
+ *     have already consumed and parsed the stream into req.body.
+ *     Re-serialize req.body so the upstream receives the correct bytes.
+ *   - Multipart (file upload): express middleware does NOT consume multipart
+ *     streams, so we can pipe req (the raw IncomingMessage) directly.
+ *   - GET / HEAD / no-body: no body sent.
+ *
  * Environment:
  *   AR3D_BACKEND  — base URL of the AR3D VPS, e.g. http://76.13.17.91:8000
  *                   Defaults to http://localhost:8000 for local dev.
@@ -11,15 +19,15 @@ import { Router, type Request, type Response } from "express";
 const router = Router();
 
 function backend(): string {
-  return process.env["AR3D_BACKEND"] ?? process.env["VITE_AR3D_BACKEND"] ?? "http://localhost:8000";
+  return (
+    process.env["AR3D_BACKEND"] ??
+    process.env["VITE_AR3D_BACKEND"] ??
+    "http://localhost:8000"
+  );
 }
 
 const PROXY_TIMEOUT_MS = 120_000;
 
-/**
- * Generic proxy: strip the /ar3d prefix and forward everything to the backend.
- * Supports GET and POST (multipart included), streams the response body back.
- */
 async function proxyToBackend(req: Request, res: Response): Promise<void> {
   const targetPath = req.path === "/" ? "" : req.path;
   const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
@@ -29,14 +37,34 @@ async function proxyToBackend(req: Request, res: Response): Promise<void> {
   const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
 
   try {
-    const init: RequestInit = {
-      method: req.method,
-      headers: buildHeaders(req),
-      signal: controller.signal,
-    };
+    const headers = buildHeaders(req);
+    const init: RequestInit = { method: req.method, headers, signal: controller.signal };
 
     if (req.method !== "GET" && req.method !== "HEAD") {
-      init.body = await readBody(req);
+      const ct = (req.headers["content-type"] ?? "").toLowerCase();
+
+      if (ct.includes("multipart/form-data")) {
+        // Express has NOT consumed multipart streams — pipe raw bytes
+        init.body = await readRawBody(req);
+        // Keep original content-type (with boundary)
+      } else if (ct.includes("application/json")) {
+        // express.json() already parsed; re-serialize
+        const json = JSON.stringify(req.body ?? {});
+        init.body = json;
+        headers["content-type"] = "application/json";
+        headers["content-length"] = Buffer.byteLength(json).toString();
+        delete headers["transfer-encoding"];
+      } else if (ct.includes("application/x-www-form-urlencoded")) {
+        // express.urlencoded() already parsed; re-encode
+        const encoded = new URLSearchParams(req.body as Record<string, string>).toString();
+        init.body = encoded;
+        headers["content-type"] = "application/x-www-form-urlencoded";
+        headers["content-length"] = Buffer.byteLength(encoded).toString();
+        delete headers["transfer-encoding"];
+      } else {
+        // Unknown — try raw stream
+        init.body = await readRawBody(req);
+      }
     }
 
     const upstream = await fetch(url, init);
@@ -62,14 +90,14 @@ async function proxyToBackend(req: Request, res: Response): Promise<void> {
 
 function buildHeaders(req: Request): Record<string, string> {
   const out: Record<string, string> = {};
-  const skip = new Set(["host", "connection", "transfer-encoding"]);
+  const skip = new Set(["host", "connection", "transfer-encoding", "content-length"]);
   for (const [k, v] of Object.entries(req.headers)) {
     if (!skip.has(k.toLowerCase()) && typeof v === "string") out[k] = v;
   }
   return out;
 }
 
-function readBody(req: Request): Promise<Buffer> {
+function readRawBody(req: Request): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     req.on("data", (c: Buffer) => chunks.push(c));
