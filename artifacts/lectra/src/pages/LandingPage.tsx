@@ -364,14 +364,86 @@ function FeatureCard({ color, tag, title, desc, chip1, chip2 }: { color: string;
 }
 
 const WORLD_RESOURCES = [
-  { name: "Khan Academy", desc: { id: "Video & latihan gratis K-12 seluruh dunia", en: "Free K-12 video lessons & exercises worldwide" }, color: "#f5c542", sprite: "academy", url: "https://khanacademy.org", tag: "Math · Science · Art" },
-  { name: "BBC Bitesize", desc: { id: "Materi kurikulum Inggris lengkap", en: "UK curriculum learning materials" }, color: "#88b8e8", sprite: "bbc", url: "https://bbc.co.uk/bitesize", tag: "K-12 · GCSE · A-Level" },
-  { name: "CK-12", desc: { id: "Buku pelajaran digital & simulasi FlexBook", en: "Free digital textbooks & FlexBook simulations" }, color: "#a8d89a", sprite: "ck12", url: "https://ck12.org", tag: "STEM · Interactive" },
-  { name: "OpenStax", desc: { id: "Buku teks perguruan tinggi gratis peer-review", en: "Free peer-reviewed college textbooks" }, color: "#f4a8b8", sprite: "open", url: "https://openstax.org", tag: "College · University" },
-  { name: "PhET Simulations", desc: { id: "Simulasi sains interaktif dari Univ. Colorado", en: "Interactive science simulations — Univ. Colorado" }, color: "#f5c542", sprite: "phet", url: "https://phet.colorado.edu", tag: "Physics · Chem · Bio" },
-  { name: "TED-Ed", desc: { id: "Pelajaran animasi dari para ahli dunia", en: "Animated lessons from world experts" }, color: "#88b8e8", sprite: "ted", url: "https://ed.ted.com", tag: "All subjects · Video" },
-  { name: "Crash Course", desc: { id: "Video edukasi cepat & menyenangkan", en: "Fast, fun educational video series" }, color: "#a8d89a", sprite: "crash", url: "https://thecrashcourse.com", tag: "YouTube · Free" },
-  { name: "Nat Geo Education", desc: { id: "Konten geografi & sains dari National Geographic", en: "Geography & science content from Nat Geo" }, color: "#f4a8b8", sprite: "geo", url: "https://education.nationalgeographic.org", tag: "Geography · Science" },
+  {
+    name: "Khan Academy",
+    desc: { id: "Video & latihan gratis K-12 seluruh dunia", en: "Free K-12 video lessons & exercises worldwide" },
+    color: "#f5c542", sprite: "academy", url: "https://khanacademy.org", tag: "Math · Science · Art",
+    topics: [
+      { id: "Sistem Tata Surya", en: "Solar System" },
+      { id: "Segitiga Pythagoras", en: "Pythagorean Triangle" },
+      { id: "Sel Darah Merah", en: "Red Blood Cell" },
+    ],
+  },
+  {
+    name: "BBC Bitesize",
+    desc: { id: "Materi kurikulum Inggris lengkap", en: "UK curriculum learning materials" },
+    color: "#88b8e8", sprite: "bbc", url: "https://bbc.co.uk/bitesize", tag: "K-12 · GCSE · A-Level",
+    topics: [
+      { id: "Rangka Manusia", en: "Human Skeleton" },
+      { id: "Siklus Air", en: "Water Cycle" },
+      { id: "Atom Hidrogen", en: "Hydrogen Atom" },
+    ],
+  },
+  {
+    name: "CK-12",
+    desc: { id: "Buku pelajaran digital & simulasi FlexBook", en: "Free digital textbooks & FlexBook simulations" },
+    color: "#a8d89a", sprite: "ck12", url: "https://ck12.org", tag: "STEM · Interactive",
+    topics: [
+      { id: "DNA Double Helix", en: "DNA Double Helix" },
+      { id: "Gunung Berapi", en: "Volcano" },
+      { id: "Jantung Manusia", en: "Human Heart" },
+    ],
+  },
+  {
+    name: "OpenStax",
+    desc: { id: "Buku teks perguruan tinggi gratis peer-review", en: "Free peer-reviewed college textbooks" },
+    color: "#f4a8b8", sprite: "open", url: "https://openstax.org", tag: "College · University",
+    topics: [
+      { id: "Neuron Saraf", en: "Neuron Cell" },
+      { id: "Kristal Garam NaCl", en: "NaCl Crystal" },
+      { id: "Orbit Elektron", en: "Electron Orbit" },
+    ],
+  },
+  {
+    name: "PhET Simulations",
+    desc: { id: "Simulasi sains interaktif dari Univ. Colorado", en: "Interactive science simulations — Univ. Colorado" },
+    color: "#f5c542", sprite: "phet", url: "https://phet.colorado.edu", tag: "Physics · Chem · Bio",
+    topics: [
+      { id: "Molekul Air H2O", en: "Water Molecule H2O" },
+      { id: "Magnet Batang", en: "Bar Magnet" },
+      { id: "Prisma Pelangi", en: "Rainbow Prism" },
+    ],
+  },
+  {
+    name: "TED-Ed",
+    desc: { id: "Pelajaran animasi dari para ahli dunia", en: "Animated lessons from world experts" },
+    color: "#88b8e8", sprite: "ted", url: "https://ed.ted.com", tag: "All subjects · Video",
+    topics: [
+      { id: "Otak Manusia", en: "Human Brain" },
+      { id: "Rantai Makanan", en: "Food Chain" },
+      { id: "Siklus Karbon", en: "Carbon Cycle" },
+    ],
+  },
+  {
+    name: "Crash Course",
+    desc: { id: "Video edukasi cepat & menyenangkan", en: "Fast, fun educational video series" },
+    color: "#a8d89a", sprite: "crash", url: "https://thecrashcourse.com", tag: "YouTube · Free",
+    topics: [
+      { id: "Mitokondria Sel", en: "Cell Mitochondria" },
+      { id: "Lempeng Tektonik", en: "Tectonic Plate" },
+      { id: "Atom Karbon", en: "Carbon Atom" },
+    ],
+  },
+  {
+    name: "Nat Geo Education",
+    desc: { id: "Konten geografi & sains dari National Geographic", en: "Geography & science content from Nat Geo" },
+    color: "#f4a8b8", sprite: "geo", url: "https://education.nationalgeographic.org", tag: "Geography · Science",
+    topics: [
+      { id: "Terumbu Karang", en: "Coral Reef" },
+      { id: "Gunung Everest", en: "Mount Everest" },
+      { id: "Aurora Borealis", en: "Aurora Borealis" },
+    ],
+  },
 ];
 
 const ResourceSprites = [SpriteRocket, SpriteDino, SpriteAstronaut, SpriteStar, SpriteBiology, SpriteAtom, SpritePlanet, SpriteFlask];
@@ -412,31 +484,43 @@ function WorldResources({ locale }: { locale: Locale }) {
           {WORLD_RESOURCES.map((r, i) => {
             const Sprite = ResourceSprites[i % ResourceSprites.length];
             return (
-              <motion.a
+              <motion.div
                 key={r.name}
-                href={r.url}
-                target="_blank"
-                rel="noopener noreferrer"
                 initial={{ opacity: 0, y: 24 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.5, delay: i * 0.06 }}
-                whileHover={{ y: -6, boxShadow: "4px 4px 0 var(--ink)" }}
-                className="bg-card border-2 border-border rounded-3xl p-5 group cursor-pointer flex flex-col gap-3 transition-colors hover:border-ink"
+                whileHover={{ y: -4, boxShadow: "4px 4px 0 var(--ink)" }}
+                className="bg-card border-2 border-border rounded-3xl p-5 flex flex-col gap-3 transition-all hover:border-ink"
               >
-                <div className="flex items-start justify-between">
+                {/* Header — links to external site */}
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-start justify-between group">
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: r.color + "66" }}>
                     <Sprite className="w-8 h-8" />
                   </div>
                   <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition mt-1" />
-                </div>
+                </a>
                 <div>
-                  <p className="font-display text-lg leading-tight mb-1">{r.name}</p>
+                  <p className="font-display text-lg leading-tight mb-0.5">{r.name}</p>
                   <p className="text-xs text-muted-foreground leading-snug">{r.desc[locale as "id" | "en"]}</p>
                 </div>
-                <div className="mt-auto">
-                  <span className="text-xs font-semibold px-2 py-1 rounded-full border border-border">{r.tag}</span>
+                {/* Real 3D topic chips — each generates a real lesson */}
+                <div className="flex flex-col gap-1.5 mt-auto">
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">
+                    {locale === "id" ? "Buat model 3D dari:" : "Generate 3D model:"}
+                  </p>
+                  {r.topics.map((tp) => (
+                    <Link
+                      key={tp.en}
+                      href={`/${locale}/create?topic=${encodeURIComponent(locale === "id" ? tp.id : tp.en)}`}
+                      className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-border text-xs font-semibold transition-all hover:border-ink hover:shadow-sm group/chip"
+                      style={{ background: r.color + "22" }}
+                    >
+                      <span className="truncate">{locale === "id" ? tp.id : tp.en}</span>
+                      <ArrowRight className="w-3 h-3 shrink-0 opacity-0 group-hover/chip:opacity-100 transition" style={{ color: "oklch(0.72 0.18 45)" }} />
+                    </Link>
+                  ))}
                 </div>
-              </motion.a>
+              </motion.div>
             );
           })}
         </div>

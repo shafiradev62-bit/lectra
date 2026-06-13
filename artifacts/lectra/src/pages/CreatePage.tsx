@@ -24,7 +24,9 @@ function CreatePage() {
   const [, setLocation] = useLocation();
 
   const [mode, setMode] = useState<CreateMode>("topic");
-  const [topic, setTopic] = useState("");
+  const [topic, setTopic] = useState(() => {
+    try { return decodeURIComponent(new URLSearchParams(window.location.search).get("topic") ?? ""); } catch { return ""; }
+  });
   const [level, setLevel] = useState(t.levels[1]);
   const [photos, setPhotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);

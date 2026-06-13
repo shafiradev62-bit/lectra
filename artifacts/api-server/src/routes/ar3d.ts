@@ -88,11 +88,25 @@ async function proxyToBackend(req: Request, res: Response): Promise<void> {
   }
 }
 
+/**
+ * Allowlist-based header forwarding.
+ * Only pass headers the AR3D backend actually needs.
+ * Sensitive headers (cookie, authorization, set-cookie, x-auth-*, etc.)
+ * are intentionally excluded to prevent credential leakage to the
+ * external VPS host.
+ */
 function buildHeaders(req: Request): Record<string, string> {
+  const ALLOWED = new Set([
+    "content-type",
+    "accept",
+    "accept-language",
+    "accept-encoding",
+    "user-agent",
+    "cache-control",
+  ]);
   const out: Record<string, string> = {};
-  const skip = new Set(["host", "connection", "transfer-encoding", "content-length"]);
   for (const [k, v] of Object.entries(req.headers)) {
-    if (!skip.has(k.toLowerCase()) && typeof v === "string") out[k] = v;
+    if (ALLOWED.has(k.toLowerCase()) && typeof v === "string") out[k] = v;
   }
   return out;
 }
