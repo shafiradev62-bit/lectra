@@ -26,7 +26,7 @@ def build_semantic_mesh(prompt: str) -> trimesh.Trimesh:
     t = _keyword(prompt)
 
     if any(k in t for k in ("sel", "cell", "sitoplasma", "organel")):
-        outer = trimesh.creation.icosphere(subdivisions=5, radius=1.0)
+        outer = trimesh.creation.icosphere(subdivisions=4, radius=1.0)
         nucleus = trimesh.creation.icosphere(subdivisions=4, radius=0.35)
         nucleus.apply_translation([0.15, 0.1, 0.0])
         mito = trimesh.creation.capsule(height=0.5, radius=0.12)
@@ -82,7 +82,6 @@ def build_semantic_mesh(prompt: str) -> trimesh.Trimesh:
             a = i * (2 * np.pi / 24)
             b = np.random.uniform(0, np.pi)
             c.apply_translation([0.95 * np.sin(b) * np.cos(a), 0.95 * np.sin(b) * np.sin(a), 0.95 * np.cos(b)])
-            # Rotate the cone to point outward
             dir_vec = np.array([np.sin(b)*np.cos(a), np.sin(b)*np.sin(a), np.cos(b)])
             up_vec = np.array([0, 1, 0])
             rot_axis = np.cross(up_vec, dir_vec)
@@ -95,7 +94,6 @@ def build_semantic_mesh(prompt: str) -> trimesh.Trimesh:
 
     if any(k in t for k in ("planet", "bumi", "earth", "mars", "jupiter", "saturn")):
         body = trimesh.creation.icosphere(subdivisions=5, radius=0.85)
-        # Add some terrain variation
         verts = body.vertices.copy()
         for i in range(len(verts)):
             n = np.linalg.norm(verts[i])
@@ -103,7 +101,7 @@ def build_semantic_mesh(prompt: str) -> trimesh.Trimesh:
             verts[i] = verts[i] * (1 + noise) / n
         body.vertices = verts
         body.compute_vertex_normals()
-        
+
         if "saturn" in t or "saturnus" in t:
             ring = trimesh.creation.annulus(r_min=1.0, r_max=1.4, height=0.02)
             ring.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2.5, [1, 0, 0]))
@@ -150,11 +148,8 @@ def build_semantic_mesh(prompt: str) -> trimesh.Trimesh:
         return trimesh.util.concatenate([base, arm, tube, lens, stage])
 
     if any(k in t for k in ("daun", "leaf", "tumbuhan", "plant")):
-        # Create a leaf-like shape
         leaf = trimesh.creation.icosphere(subdivisions=4, radius=0.8)
-        # Flatten and stretch
         leaf.apply_transform(trimesh.transformations.scale_matrix([1.6, 0.15, 0.9]))
-        # Add wavy edges
         verts = leaf.vertices.copy()
         for i in range(len(verts)):
             x, y, z = verts[i]
@@ -162,36 +157,32 @@ def build_semantic_mesh(prompt: str) -> trimesh.Trimesh:
             verts[i][1] += wave
         leaf.vertices = verts
         leaf.compute_vertex_normals()
-        
+
         stem = trimesh.creation.cylinder(radius=0.04, height=0.6)
         stem.apply_translation([0, -0.5, 0])
         return trimesh.util.concatenate([leaf, stem])
 
     if any(k in t for k in ("gunung", "mountain", "terrain")):
-        # Create a mountain with multiple peaks
         base = trimesh.creation.cylinder(radius=1.2, height=0.2)
         base.apply_translation([0, -0.8, 0])
-        
+
         main_peak = trimesh.creation.cone(radius=0.7, height=1.4, sections=24)
         main_peak.apply_translation([0, 0.1, 0])
-        
-        # Add smaller peaks
+
         peak1 = trimesh.creation.cone(radius=0.35, height=0.8, sections=16)
         peak1.apply_translation([-0.6, -0.2, 0.2])
-        
+
         peak2 = trimesh.creation.cone(radius=0.3, height=0.6, sections=16)
         peak2.apply_translation([0.5, -0.3, -0.3])
-        
+
         return trimesh.util.concatenate([base, main_peak, peak1, peak2])
 
     if any(k in t for k in ("matematika", "math", "geometri", "geometry")):
-        # Create a compound geometric shape
         ico = trimesh.creation.icosahedron(subdivisions=2, radius=1.0)
         cube = trimesh.creation.box(extents=[0.4, 0.4, 0.4])
         return trimesh.util.concatenate([ico, cube])
 
     if any(k in t for k in ("sejarah", "history", "artefak", "artifact")):
-        # Create a vase-like shape
         body = trimesh.creation.cylinder(radius=0.3, height=1.0)
         neck = trimesh.creation.cylinder(radius=0.15, height=0.2)
         neck.apply_translation([0, 0.6, 0])
@@ -199,7 +190,7 @@ def build_semantic_mesh(prompt: str) -> trimesh.Trimesh:
         base.apply_translation([0, -0.55, 0])
         return trimesh.util.concatenate([body, neck, base])
 
-    # Universal fallback — smooth icosphere (real mesh, not browser sphere)
+    # Universal fallback — smooth icosahedron (real mesh, not browser sphere)
     return trimesh.creation.icosphere(subdivisions=5, radius=1.0)
 
 
