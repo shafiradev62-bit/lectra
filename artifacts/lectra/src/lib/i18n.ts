@@ -20,7 +20,7 @@ type Dict = {
     social: string;
     badge1: string; badge2: string;
   };
-  subjects: { heading: string; items: string[] };
+  subjects: { heading: string; items: string[]; topics: string[] };
   why: {
     heading: string; sub: string;
     cards: { tag: string; title: string; desc: string; chip1?: string; chip2?: string }[];
@@ -67,6 +67,7 @@ type Dict = {
     quizScore: string; quizScoreOf: string; quizRetry: string;
     history: string; historyEmpty: string; historyDelete: string; historyOpen: string;
     progressLabel: string;
+    generateVideo: string; generatingVideo: string; downloadVideo: string; videoReady: string; videoError: string;
   };
 };
 
@@ -79,7 +80,7 @@ const id: Dict = {
     social: "Dipakai 1.200+ guru di Indonesia",
     badge1: "cell.obj · 824 vertices", badge2: "AR siap ditampilkan",
   },
-  subjects: { heading: "Saya ingin membuat materi tentang", items: ["Biologi","Astronomi","Fisika","Kimia","Matematika","Sejarah","Geografi","Anatomi"] },
+  subjects: { heading: "Saya ingin membuat materi tentang", items: ["Biologi","Astronomi","Fisika","Kimia","Matematika","Sejarah","Geografi","Anatomi"], topics: ["Struktur sel hewan","Tata surya & planet","Gelombang dan frekuensi","Model atom Bohr","Teorema Pythagoras","Kerajaan Majapahit","Lempeng tektonik","Sistem rangka manusia"] },
   why: {
     heading: "Kenapa guru memilih Lectra?",
     sub: "Semua alat untuk mengajar interaktif jadi satu — tanpa coding, tanpa API key, tanpa pusing.",
@@ -163,6 +164,7 @@ const id: Dict = {
     quizScore: "Skor kamu", quizScoreOf: "dari", quizRetry: "Ulangi",
     history: "Riwayat Materi", historyEmpty: "Belum ada materi tersimpan.", historyDelete: "Hapus", historyOpen: "Buka",
     progressLabel: "Progres membaca",
+    generateVideo: "Generate Video MP4", generatingVideo: "Membuat video…", downloadVideo: "Unduh Video", videoReady: "Video siap!", videoError: "Gagal membuat video",
   },
 };
 
@@ -175,7 +177,7 @@ const en: Dict = {
     social: "Used by 1,200+ teachers worldwide",
     badge1: "cell.obj · 824 vertices", badge2: "AR ready to show",
   },
-  subjects: { heading: "I want to build a lesson about", items: ["Biology","Astronomy","Physics","Chemistry","Math","History","Geography","Anatomy"] },
+  subjects: { heading: "I want to build a lesson about", items: ["Biology","Astronomy","Physics","Chemistry","Math","History","Geography","Anatomy"], topics: ["Animal cell structure","The solar system & planets","Waves and frequency","Bohr atomic model","Pythagorean theorem","Ancient Roman empire","Plate tectonics","Human skeletal system"] },
   why: {
     heading: "Why teachers choose Lectra",
     sub: "Every tool for interactive teaching in one place — no code, no API keys, no headaches.",
@@ -259,6 +261,7 @@ const en: Dict = {
     quizScore: "Your score", quizScoreOf: "out of", quizRetry: "Retry",
     history: "Lesson History", historyEmpty: "No saved lessons yet.", historyDelete: "Delete", historyOpen: "Open",
     progressLabel: "Reading progress",
+    generateVideo: "Generate MP4 Video", generatingVideo: "Building video…", downloadVideo: "Download Video", videoReady: "Video ready!", videoError: "Failed to generate video",
   },
 };
 

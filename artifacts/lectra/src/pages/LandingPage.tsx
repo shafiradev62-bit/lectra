@@ -14,6 +14,7 @@ import heroImg from "@/assets/hero-teacher.png";
 import card3d from "@/assets/card-3d.jpg";
 import cardAr from "@/assets/card-ar.jpg";
 import { dict, isLocale, type Locale } from "@/lib/i18n";
+import { wiggleElement, scaleInBounce, glowEffect, pulseElement } from "@/lib/animations";
 
 type T = ReturnType<typeof tFor>;
 function tFor(l: Locale) { return dict[l]; }
@@ -143,6 +144,8 @@ function Nav({ locale, t }: { locale: Locale; t: T }) {
 function Hero({ locale, t }: { locale: Locale; t: T }) {
   const [, setLocation] = useLocation();
   const heroRef = useRef<HTMLDivElement>(null);
+  const heroButtonRef = useRef<HTMLButtonElement>(null);
+  const demoButtonRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
     if (heroRef.current) {
@@ -184,17 +187,21 @@ function Hero({ locale, t }: { locale: Locale; t: T }) {
             className="flex flex-wrap items-center gap-3 mb-10"
           >
             <motion.button
+              ref={heroButtonRef}
               whileHover={{ scale: 1.06, y: -3 }}
               whileTap={{ scale: 0.97 }}
+              onMouseEnter={() => glowEffect(heroButtonRef.current)}
               onClick={() => setLocation(`/${locale}/create`)}
               style={{ background: "oklch(0.72 0.18 45)", color: "white", borderRadius: "9999px", padding: "0.875rem 1.75rem", fontWeight: 700, fontSize: "1rem", display: "inline-flex", alignItems: "center", gap: "0.5rem", boxShadow: "0 4px 0 oklch(0.55 0.18 40)" }}
             >
               {t.hero.primary} <ArrowRight className="w-4 h-4" />
             </motion.button>
             <motion.a
+              ref={demoButtonRef}
               href="#showcase"
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
+              onMouseEnter={() => pulseElement(demoButtonRef.current)}
               style={{ background: "oklch(0.78 0.16 150)", color: "oklch(0.18 0.01 60)", borderRadius: "9999px", padding: "0.875rem 1.75rem", fontWeight: 700, fontSize: "1rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
             >
               <Play className="w-4 h-4" fill="currentColor" /> {t.hero.demo}
@@ -284,7 +291,6 @@ function Hero({ locale, t }: { locale: Locale; t: T }) {
 }
 
 function Subjects({ locale, t }: { locale: Locale; t: T }) {
-  const [, setLocation] = useLocation();
   return (
     <section className="px-6 md:px-12 pb-20">
       <div className="max-w-7xl mx-auto">
@@ -293,21 +299,25 @@ function Subjects({ locale, t }: { locale: Locale; t: T }) {
         <div className="flex flex-wrap justify-center gap-3">
           {t.subjects.items.map((label, i) => {
             const S = SUBJECT_SPRITES[i];
+            const topic = t.subjects.topics?.[i] ?? label;
             return (
-              <motion.button
+              <Link
                 key={label}
-                type="button"
-                onClick={() => setLocation(`/${locale}/create`)}
-                whileHover={{ scale: 1.1, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                style={{ background: "white", border: "1.5px solid oklch(0.88 0.015 70)", borderRadius: "9999px", padding: "0.5rem 1rem", fontSize: "0.875rem", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+                href={`/${locale}/create?topic=${encodeURIComponent(topic)}`}
               >
-                <motion.div whileHover={{ rotate: 10, scale: 1.2 }} transition={{ type: "spring", stiffness: 400 }}>
-                  <S className="w-6 h-6" />
-                </motion.div>
-                {label}
-              </motion.button>
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.1, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                  style={{ background: "white", border: "1.5px solid oklch(0.88 0.015 70)", borderRadius: "9999px", padding: "0.5rem 1rem", fontSize: "0.875rem", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+                >
+                  <motion.div whileHover={{ rotate: 10, scale: 1.2 }} transition={{ type: "spring", stiffness: 400 }}>
+                    <S className="w-6 h-6" />
+                  </motion.div>
+                  {label}
+                </motion.button>
+              </Link>
             );
           })}
         </div>

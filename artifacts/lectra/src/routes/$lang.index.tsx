@@ -328,8 +328,15 @@ function Subjects({ locale, t }: { locale: Locale; t: T }) {
         <div className="flex flex-wrap justify-center gap-3">
           {t.subjects.items.map((label, i) => {
             const S = SUBJECT_SPRITES[i];
+            const topic = t.subjects.topics?.[i] ?? label;
             return (
-              <Link key={label} to="/$lang/create" params={{ lang: locale }} asChild>
+              <Link
+                key={label}
+                to="/$lang/create"
+                params={{ lang: locale }}
+                search={{ topic }}
+                asChild
+              >
                 <motion.button
                   whileHover={{ scale: 1.1, y: -2 }}
                   whileTap={{ scale: 0.95 }}

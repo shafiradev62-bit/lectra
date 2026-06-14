@@ -1,13 +1,14 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import QRCode from "qrcode";
-import { ArrowLeft, Check, Download, Scan, X, Copy, Printer, RotateCcw, Trophy, ExternalLink } from "lucide-react";
+import { ArrowLeft, Check, Download, Scan, X, Copy, Printer, RotateCcw, Trophy, ExternalLink, Video, Loader2 } from "lucide-react";
 import { getLesson, type StoredLesson } from "@/lib/lesson-storage";
 import { normalizeLesson } from "@/lib/lesson-generator";
 import { Lesson3D, vertexCount, downloadGlb, type ShapeSpec } from "@/components/lesson-3d";
 import { ModelViewerAR } from "@/components/model-viewer-ar";
 import { SpriteBook, SpriteScan, SpriteMark, SpriteHeart } from "@/components/sprites";
 import { dict, isLocale, type Locale } from "@/lib/i18n";
+import { generateLessonVideo } from "@/lib/video-generator";
 
 export const Route = createFileRoute("/$lang/lesson/$id")({
   component: LessonPage,
@@ -38,6 +39,9 @@ function LessonPage() {
   const [stored, setStored] = useState<StoredLesson | null | undefined>(undefined);
   const [arSpec, setArSpec] = useState<{ spec: ShapeSpec; label: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [videoState, setVideoState] = useState<"idle" | "generating" | "ready" | "error">("idle");
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoUrl, setVideoUrl] = useState<{ url: string; filename: string } | null>(null);
   const progress = useReadingProgress();
 
   useEffect(() => {
@@ -68,6 +72,37 @@ function LessonPage() {
     } catch {
       // Ignore print errors
     }
+  }
+
+  const handleGenerateVideo = useCallback(async () => {
+    if (!stored || videoState === "generating") return;
+    // Clean up previous video URL
+    if (videoUrl) {
+      URL.revokeObjectURL(videoUrl.url);
+      setVideoUrl(null);
+    }
+    setVideoState("generating");
+    setVideoProgress(0);
+    try {
+      const lesson = normalizeLesson(stored.lesson);
+      const result = await generateLessonVideo(lesson, {
+        onProgress: (pct) => setVideoProgress(pct),
+      });
+      setVideoUrl({ url: result.url, filename: result.filename });
+      setVideoState("ready");
+    } catch (err) {
+      console.error("[Video] Generation failed:", err);
+      setVideoState("error");
+      setTimeout(() => setVideoState("idle"), 3000);
+    }
+  }, [stored, videoState, videoUrl]);
+
+  function handleDownloadVideo() {
+    if (!videoUrl) return;
+    const a = document.createElement("a");
+    a.href = videoUrl.url;
+    a.download = videoUrl.filename;
+    a.click();
   }
 
   if (stored === undefined) {
@@ -115,6 +150,40 @@ function LessonPage() {
           </Link>
 
           <div className="flex items-center gap-2">
+            {/* Generate / Download Video */}
+            {videoState === "idle" && (
+              <button
+                onClick={handleGenerateVideo}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-border hover:border-ink transition print:hidden"
+                title={t.generateVideo}
+                aria-label={t.generateVideo}
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{t.generateVideo}</span>
+              </button>
+            )}
+            {videoState === "generating" && (
+              <div className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-accent text-accent print:hidden">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span className="hidden sm:inline">{videoProgress}%</span>
+              </div>
+            )}
+            {videoState === "ready" && (
+              <button
+                onClick={handleDownloadVideo}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-leaf border border-leaf text-ink hover:opacity-90 transition print:hidden"
+                title={t.downloadVideo}
+                aria-label={t.downloadVideo}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{t.downloadVideo}</span>
+              </button>
+            )}
+            {videoState === "error" && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-destructive text-destructive print:hidden">
+                {t.videoError}
+              </span>
+            )}
             {/* Copy link */}
             <button
               onClick={handleCopyLink}

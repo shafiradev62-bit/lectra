@@ -5,7 +5,8 @@
 
 export type ShapeType =
   | "sphere" | "cube" | "torus" | "cone" | "cylinder"
-  | "icosahedron" | "dodecahedron" | "organic" | "molecule" | "terrain" | "star" | "replicate";
+  | "icosahedron" | "dodecahedron" | "organic" | "molecule" | "terrain" | "star" | "replicate"
+  | "volcano" | "mountain" | "crystal" | "dna" | "heart" | "brain" | "bone" | "planet";
 
 export interface LessonShape {
   type: ShapeType;
@@ -44,8 +45,90 @@ export interface Lesson {
 
 const SHAPE_TYPES: ShapeType[] = [
   "sphere", "cube", "torus", "cone", "cylinder",
-  "icosahedron", "dodecahedron", "organic", "molecule", "terrain", "star", "replicate"
+  "icosahedron", "dodecahedron", "organic", "molecule", "terrain", "star", "replicate",
+  "volcano", "mountain", "crystal", "dna", "heart", "brain", "bone", "planet",
 ];
+
+/**
+ * Infer the most relevant 3D shape type from a label/heading/topic string.
+ * Matches the actual visual object, not just the domain.
+ */
+export function inferShapeFromLabel(text: string, fallback: ShapeType = "icosahedron"): ShapeType {
+  const t = text.toLowerCase();
+
+  // ── Specific objects first (most precise) ─────────────────────────────────
+
+  // Volcano / gunung berapi
+  if (t.match(/\b(gunung berapi|volcano|volcan|vulkaan|eruption|erupsi|lava|magma|krakatau|merapi)\b/)) return "volcano";
+
+  // Mountain / peak
+  if (t.match(/\b(gunung|mountain|pegunungan|puncak|peak|summit|himalaya|everest|bukit|hill|lereng|slope)\b/)) return "mountain";
+
+  // DNA / helix
+  if (t.match(/\b(dna|rna|helix|double helix|nukleotida|nucleotide|kromosom|chromosome|gen |gene)\b/)) return "dna";
+
+  // Heart
+  if (t.match(/\b(jantung|heart|cardiac|kardio|ventrikel|ventricle|atrium)\b/)) return "heart";
+
+  // Brain / neuron
+  if (t.match(/\b(otak|brain|neuron|saraf|nerve|neural|cerebral|korteks|cortex)\b/)) return "brain";
+
+  // Bone / skeleton
+  if (t.match(/\b(tulang|bone|rangka|skeleton|tengkorak|skull|femur|tibia|vertebra|sendi|joint)\b/)) return "bone";
+
+  // Planet / sphere objects
+  if (t.match(/\b(planet|saturnus|saturn|jupiter|mars|venus|merkurius|mercury|uranus|neptunus|neptune|bulan|moon|asteroid|meteor|bumi|earth)\b/)) return "planet";
+
+  // Star / sun
+  if (t.match(/\b(matahari|sun|solar|bintang|star|galaksi|galaxy|nebula|komet|comet|cahaya|light|foton|photon)\b/)) return "star";
+
+  // Crystal / mineral
+  if (t.match(/\b(kristal|crystal|mineral|berlian|diamond|quartz|kuarsa|permata|gem|salt|garam nacl|lattice)\b/)) return "crystal";
+
+  // Molecule / atom
+  if (t.match(/\b(molekul|molecule|atom|ion|elektron|electron|proton|neutron|ikatan|bond|senyawa|compound|kimia|chem|h2o|co2|nacl|oksigen|oxygen|hidrogen|hydrogen|karbon|carbon|nitrogen)\b/)) return "molecule";
+
+  // Organic / cell / biology blob
+  if (t.match(/\b(sel|cell|organel|organelle|sitoplasma|cytoplasm|nukleus|nucleus|membran|membrane|mitokondria|mitochondria|ribosom|ribosome)\b/)) return "organic";
+  if (t.match(/\b(daun|leaf|tumbuhan|plant|akar|root|batang|stem|bunga|flower|buah|fruit|botani|botany)\b/)) return "organic";
+  if (t.match(/\b(virus|bakteri|bacteria|mikrob|microb|jamur|fungi|protozoa|amuba|amoeba)\b/)) return "organic";
+  if (t.match(/\b(paru|lung|napas|breath|respirasi|respiration|liver|hati|ginjal|kidney)\b/)) return "organic";
+
+  // Terrain / landscape / earth science
+  if (t.match(/\b(lempeng|plate|tektonik|tectonic|benua|continent|kerak|crust|mantel|mantle|litosfer|lithosphere)\b/)) return "terrain";
+  if (t.match(/\b(peta|map|geografi|geography|topografi|topography|tanah|soil|bumi|earth|samudra|ocean|laut|sea|sungai|river|danau|lake|pantai|beach|pulau|island)\b/)) return "terrain";
+  if (t.match(/\b(ekosistem|ecosystem|iklim|climate|cuaca|weather|lingkungan|environment|polusi|pollution|hutan|forest|rawa|swamp)\b/)) return "terrain";
+
+  // Torus / wave / ring
+  if (t.match(/\b(gelombang|wave|frekuensi|frequency|getaran|vibration|bunyi|sound|akustik|acoustic|cincin|ring|torus|donat|donut)\b/)) return "torus";
+  if (t.match(/\b(magnet|magnetic|medan|field|listrik|electric|arus|current|sirkuit|circuit|jaringan|network|sinyal|signal)\b/)) return "torus";
+
+  // Cylinder / tube
+  if (t.match(/\b(silinder|cylinder|tabung|tube|pipa|pipe|batang silinder|prisma bulat)\b/)) return "cylinder";
+  if (t.match(/\b(robot|mesin|machine|motor|engine|gear|roda|wheel|teknik|engineering)\b/)) return "cylinder";
+
+  // Cone / pyramid
+  if (t.match(/\b(kerucut|cone|piramida|pyramid|segitiga|triangle|apex|puncak kerucut)\b/)) return "cone";
+
+  // Cube / box
+  if (t.match(/\b(kubus|cube|balok|cuboid|kotak|box|persegi panjang|rectangular|kristal kubik)\b/)) return "cube";
+  if (t.match(/\b(komputer|computer|data|algoritma|algorithm|kode|code|program|software|hardware|server|database)\b/)) return "cube";
+  if (t.match(/\b(arsitektur|architecture|bangunan|building|gedung|jembatan|bridge|konstruksi|construction|rumah|house)\b/)) return "cube";
+  if (t.match(/\b(ekonomi|economy|perdagangan|trade|pasar|market|keuangan|finance|bank|investasi|investment)\b/)) return "cube";
+
+  // Icosahedron / math / abstract
+  if (t.match(/\b(matematika|math|aljabar|algebra|statistik|statistic|probabilitas|probability|kalkulus|calculus|pythagoras)\b/)) return "icosahedron";
+  if (t.match(/\b(gravitasi|gravity|gaya|force|gerak|motion|kecepatan|velocity|percepatan|acceleration|fisika|physics)\b/)) return "icosahedron";
+  if (t.match(/\b(rangka|skeleton|otot|muscle|tendon|ligamen|ligament|anatomi|anatomy)\b/)) return "bone";
+
+  // Dodecahedron / history / culture
+  if (t.match(/\b(sejarah|history|kerajaan|kingdom|kekaisaran|empire|peradaban|civilization|dinasti|dynasty|budaya|culture|seni|art)\b/)) return "dodecahedron";
+  if (t.match(/\b(geometri|geometry|simetri|symmetry|pola|pattern|fraktal|fractal|trigonometri|trigonometry)\b/)) return "dodecahedron";
+  if (t.match(/\b(energi|energy|panas|heat|suhu|temperature|termal|thermal|kalor|entropi|entropy)\b/)) return "dodecahedron";
+  if (t.match(/\b(evolusi|evolution|adaptasi|adaptation|spesies|species|seleksi|selection)\b/)) return "organic";
+
+  return fallback;
+}
 
 export function normalizeLesson(raw: Partial<Lesson> | Lesson): Lesson {
   const safeRaw = raw || {} as Lesson;
@@ -60,7 +143,7 @@ export function normalizeLesson(raw: Partial<Lesson> | Lesson): Lesson {
       body: s?.body || "",
       bullets: (s?.bullets || []).slice(0, 4),
       shape: {
-        type: SHAPE_TYPES.includes(s?.shape?.type as any) ? s?.shape?.type : "sphere",
+        type: SHAPE_TYPES.includes(s?.shape?.type as any) ? s?.shape?.type : inferShapeFromLabel(s?.shape?.label || s?.heading || ""),
         color: /^#[0-9a-fA-F]{6}$/.test(s?.shape?.color || "") ? s?.shape?.color : "#f5c542",
         scale: Math.max(0.5, Math.min(2, (s?.shape?.scale) || 1)),
         detail: Math.max(0, Math.min(3, Math.round((s?.shape?.detail) || 1))),
@@ -169,7 +252,7 @@ const TOPIC_DB: { keys: string[]; def: TopicDef }[] = [
   {
     keys: ["tata surya", "planet", "solar system", "astronomi", "astronomy", "saturnus", "jupiter", "mars", "venus"],
     def: {
-      shape: "sphere", color: "#f4a26b", color2: "#88b8e8", color3: "#f5c542",
+      shape: "planet", color: "#f4a26b", color2: "#88b8e8", color3: "#f5c542",
       id: {
         title: "Tata Surya & Planet", subtitle: "Delapan planet dan misteri alam semesta",
         intro: "Tata surya kita terdiri dari Matahari dan delapan planet yang mengorbit mengelilinginya. Setiap planet memiliki karakteristik unik — mulai dari cincin Saturnus yang memukau hingga badai raksasa Jupiter yang telah berlangsung selama ratusan tahun.",
@@ -277,7 +360,7 @@ const TOPIC_DB: { keys: string[]; def: TopicDef }[] = [
   {
     keys: ["lempeng tektonik", "plate tectonics", "gunung berapi", "volcano", "gempa", "earthquake", "geografi", "geography", "peta", "map"],
     def: {
-      shape: "terrain", color: "#f4a26b", color2: "#a8d89a", color3: "#88b8e8",
+      shape: "mountain", color: "#f4a26b", color2: "#a8d89a", color3: "#88b8e8",
       id: {
         title: "Lempeng Tektonik", subtitle: "Gerak lempeng dan pembentukan benua",
         intro: "Permukaan Bumi terdiri dari lempeng-lempeng tektonik besar yang terus bergerak secara perlahan. Pergerakan ini membentuk pegunungan, palung laut, dan menyebabkan gempa bumi serta letusan gunung berapi.",
@@ -331,7 +414,7 @@ const TOPIC_DB: { keys: string[]; def: TopicDef }[] = [
   {
     keys: ["monyet", "kera", "monkey", "ape", "hewan", "animal", "mamalia", "mammal"],
     def: {
-      shape: "icosahedron", color: "#8B4513", color2: "#A0522D", color3: "#D2691E",
+      shape: "organic", color: "#8B4513", color2: "#A0522D", color3: "#D2691E",
       id: {
         title: "Monyet & Hewan Mamalia", subtitle: "Kera, monyet, dan ciri-ciri mamalia",
         intro: "Monyet adalah hewan mamalia yang tergolong dalam ordo Primata. Mereka memiliki otak yang berkembang, tangan yang cekatan, dan hidup di berbagai habitat mulai dari hutan hujan hingga pegunungan.",
@@ -385,7 +468,7 @@ const TOPIC_DB: { keys: string[]; def: TopicDef }[] = [
   {
     keys: ["rangka", "tulang", "skeletal", "bone", "anatomi", "anatomy", "sendi", "joint"],
     def: {
-      shape: "icosahedron", color: "#fff8e1", color2: "#f4a8b8", color3: "#88b8e8",
+      shape: "bone", color: "#fff8e1", color2: "#f4a8b8", color3: "#88b8e8",
       id: {
         title: "Sistem Rangka Manusia", subtitle: "206 tulang yang menopang kehidupan",
         intro: "Rangka manusia dewasa terdiri dari 206 tulang yang membentuk kerangka, melindungi organ vital, dan memungkinkan gerakan. Tulang juga memproduksi sel darah dan menyimpan mineral seperti kalsium.",
@@ -498,35 +581,15 @@ export async function generateLocalLesson(
     const d = match.def;
     const loc = d[lang];
     const levelLabel = level ?? (isEn ? "All Levels" : "Semua Tingkat");
-    // Determine shape types based on labels for TOPIC_DB matches
-    const s1LabelLower = loc.s1.label.toLowerCase();
-    const s2LabelLower = loc.s2.label.toLowerCase();
-    const s3LabelLower = loc.s3.label.toLowerCase();
-    
-    let s1Type: ShapeType = d.shape;
-    let s2Type: ShapeType = "torus";
-    let s3Type: ShapeType = "icosahedron";
-    
-    if (s1LabelLower.includes("matahari") || s1LabelLower.includes("sun") || s1LabelLower.includes("bintang") || s1LabelLower.includes("star")) s1Type = "star";
-    if (s1LabelLower.includes("bumi") || s1LabelLower.includes("earth") || s1LabelLower.includes("planet")) s1Type = "terrain";
-    if (s1LabelLower.includes("tulang") || s1LabelLower.includes("bone") || s1LabelLower.includes("skull")) s1Type = "icosahedron";
-    if (s1LabelLower.includes("monyet") || s1LabelLower.includes("monkey") || s1LabelLower.includes("kera")) s1Type = "icosahedron";
-    if (s1LabelLower.includes("sel") || s1LabelLower.includes("cell")) s1Type = "organic";
-    if (s1LabelLower.includes("atom") || s1LabelLower.includes("molekul")) s1Type = "molecule";
-    
-    if (s2LabelLower.includes("matahari") || s2LabelLower.includes("sun") || s2LabelLower.includes("bintang") || s2LabelLower.includes("star")) s2Type = "star";
-    if (s2LabelLower.includes("bumi") || s2LabelLower.includes("earth") || s2LabelLower.includes("planet")) s2Type = "terrain";
-    if (s2LabelLower.includes("tulang") || s2LabelLower.includes("bone") || s2LabelLower.includes("skull")) s2Type = "icosahedron";
-    if (s2LabelLower.includes("monyet") || s2LabelLower.includes("monkey") || s2LabelLower.includes("kera")) s2Type = "icosahedron";
-    if (s2LabelLower.includes("sel") || s2LabelLower.includes("cell")) s2Type = "organic";
-    if (s2LabelLower.includes("atom") || s2LabelLower.includes("molekul")) s2Type = "molecule";
-    
-    if (s3LabelLower.includes("matahari") || s3LabelLower.includes("sun") || s3LabelLower.includes("bintang") || s3LabelLower.includes("star")) s3Type = "star";
-    if (s3LabelLower.includes("bumi") || s3LabelLower.includes("earth") || s3LabelLower.includes("planet")) s3Type = "terrain";
-    if (s3LabelLower.includes("tulang") || s3LabelLower.includes("bone") || s3LabelLower.includes("skull")) s3Type = "icosahedron";
-    if (s3LabelLower.includes("monyet") || s3LabelLower.includes("monkey") || s3LabelLower.includes("kera")) s3Type = "icosahedron";
-    if (s3LabelLower.includes("sel") || s3LabelLower.includes("cell")) s3Type = "organic";
-    if (s3LabelLower.includes("atom") || s3LabelLower.includes("molekul")) s3Type = "molecule";
+
+    // Infer shape per section from label + heading + body combined
+    const s1Text = `${loc.s1.label} ${loc.s1.h} ${loc.s1.body}`;
+    const s2Text = `${loc.s2.label} ${loc.s2.h} ${loc.s2.body}`;
+    const s3Text = `${loc.s3.label} ${loc.s3.h} ${loc.s3.body}`;
+
+    const s1Type: ShapeType = inferShapeFromLabel(s1Text, d.shape as ShapeType);
+    const s2Type: ShapeType = inferShapeFromLabel(s2Text, s1Type === "torus" ? "dodecahedron" : "torus");
+    const s3Type: ShapeType = inferShapeFromLabel(s3Text, s1Type === "cube" ? "cylinder" : "cube");
     
     // First create the base lesson
     const baseLesson = {
@@ -549,26 +612,34 @@ export async function generateLocalLesson(
   }
 
   // Generic fallback
-  let type: ShapeType = "sphere";
+  let type: ShapeType = "icosahedron";
   let color = "#f5c542";
   let color2 = "#88b8e8";
   let color3 = "#a8d89a";
 
-  if (t.includes("sel") || t.includes("cell") || t.includes("organ") || t.includes("daun") || t.includes("leaf") || t.includes("tumbuhan") || t.includes("plant")) {
-    type = "organic"; color = "#a8d89a";
-  } else if (t.includes("atom") || t.includes("molekul") || t.includes("molecule") || t.includes("kimia") || t.includes("chem") || t.includes("reaksi") || t.includes("reaction")) {
-    type = "molecule"; color = "#88b8e8";
-  } else if (t.includes("gunung") || t.includes("mountain") || t.includes("bumi") || t.includes("earth") || t.includes("peta") || t.includes("map") || t.includes("tanah") || t.includes("soil")) {
-    type = "terrain"; color = "#f4a26b";
-  } else if (t.includes("bintang") || t.includes("star") || t.includes("matahari") || t.includes("sun") || t.includes("galaksi") || t.includes("galaxy")) {
-    type = "star"; color = "#f5c542";
-  } else if (t.includes("sejarah") || t.includes("history") || t.includes("kerajaan") || t.includes("kingdom") || t.includes("perang") || t.includes("war")) {
-    type = "dodecahedron"; color = "#c9a96e";
-  } else if (t.includes("matematika") || t.includes("math") || t.includes("geometri") || t.includes("geometry") || t.includes("pythagoras")) {
-    type = "icosahedron"; color = "#f4a8b8";
-  }
+  // Determine primary shape using our helper (topic-level)
+  type = inferShapeFromLabel(t, "icosahedron");
+
+  // Keep specific color overrides
+  if (type === "organic") { color = "#a8d89a"; color2 = "#f4a8b8"; color3 = "#88b8e8"; }
+  else if (type === "molecule") { color = "#88b8e8"; color2 = "#f5c542"; color3 = "#a8d89a"; }
+  else if (type === "terrain") { color = "#f4a26b"; color2 = "#a8d89a"; color3 = "#88b8e8"; }
+  else if (type === "star") { color = "#f5c542"; color2 = "#f4a26b"; color3 = "#f4a8b8"; }
+  else if (type === "dodecahedron") { color = "#c9a96e"; color2 = "#f4a8b8"; color3 = "#88b8e8"; }
+  else if (type === "icosahedron") { color = "#f4a8b8"; color2 = "#88b8e8"; color3 = "#a8d89a"; }
+  else if (type === "cube") { color = "#88b8e8"; color2 = "#a8d89a"; color3 = "#f4a8b8"; }
+  else if (type === "cylinder") { color = "#a8d89a"; color2 = "#88b8e8"; color3 = "#f4a8b8"; }
+  else if (type === "torus") { color = "#f4a8b8"; color2 = "#88b8e8"; color3 = "#a8d89a"; }
+  else if (type === "cone") { color = "#f4a26b"; color2 = "#f5c542"; color3 = "#a8d89a"; }
 
   const levelLabel = level ?? (isEn ? "All Levels" : "Semua Tingkat");
+
+  // Pick 3 distinct shapes. Section 1 = topic shape. 2 & 3 = complementary shapes
+  // so we never show the same shape twice in a lesson.
+  const s1Type = type;
+  const ALL_VARIED: ShapeType[] = ["torus", "dodecahedron", "icosahedron", "cube", "crystal", "cylinder", "molecule", "terrain", "star", "cone"];
+  const s2Type = ALL_VARIED.find(c => c !== s1Type) ?? "torus";
+  const s3Type = ALL_VARIED.find(c => c !== s1Type && c !== s2Type) ?? "cube";
 
   const baseLesson = {
     title: topic,
@@ -601,7 +672,7 @@ export async function generateLocalLesson(
           isEn ? "How conditions affect behavior" : "Bagaimana kondisi mempengaruhi perilaku",
           isEn ? "Common misconceptions explained" : "Kesalahpahaman umum yang diluruskan",
         ],
-        shape: { type: "torus", color: color2, scale: 1.0, detail: 1, label: isEn ? "Core Principles" : "Prinsip Inti" },
+        shape: { type: s2Type, color: color2, scale: 1.0, detail: 1, label: isEn ? "Core Principles" : "Prinsip Inti" },
       },
       {
         heading: isEn ? "Real-World Applications" : "Aplikasi di Dunia Nyata",
@@ -613,7 +684,7 @@ export async function generateLocalLesson(
           isEn ? "Connections to other subjects" : "Hubungan dengan mata pelajaran lain",
           isEn ? "Future research directions" : "Arah penelitian masa depan",
         ],
-        shape: { type: "icosahedron", color: color3, scale: 1.1, detail: 1, label: isEn ? "Applications" : "Aplikasi" },
+        shape: { type: s3Type, color: color3, scale: 1.1, detail: 1, label: isEn ? "Applications" : "Aplikasi" },
       },
     ],
     vocabulary: [

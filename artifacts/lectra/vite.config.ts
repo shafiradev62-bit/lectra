@@ -4,13 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
+const rawPort = process.env.PORT || '5173';
 
 const port = Number(rawPort);
 
@@ -18,13 +12,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+const basePath = process.env.BASE_PATH || '/';
 
 export default defineConfig({
   base: basePath,
@@ -58,11 +46,30 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
   },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "wouter",
+      "@tanstack/react-query",
+      "motion/react",
+      "lucide-react",
+      "animejs",
+    ],
+  },
   server: {
     port,
     strictPort: true,
-    host: "0.0.0.0",
+    host: "localhost",
     allowedHosts: true,
+    warmup: {
+      clientFiles: [
+        "./src/main.tsx",
+        "./src/App.tsx",
+        "./src/pages/LandingPage.tsx",
+        "./src/index.css",
+      ],
+    },
     fs: {
       strict: true,
     },
@@ -73,7 +80,7 @@ export default defineConfig({
         target: process.env["AR3D_BACKEND"] ?? process.env["VITE_AR3D_BACKEND"] ?? "http://localhost:8000",
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/api\/ar3d/, ""),
-        timeout: 120000,
+        timeout: 5000,
         configure: (_proxy, _options) => {
           // Silently swallow connection refused — backend is optional
         },

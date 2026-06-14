@@ -1,14 +1,23 @@
 import { Switch, Route, Router as WouterRouter, useParams, useLocation, Link } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { detectLocale } from "@/lib/i18n";
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 
 import LandingPage from "@/pages/LandingPage";
-import CreatePage from "@/pages/CreatePage";
-import LessonPage from "@/pages/LessonPage";
-import ArPage from "@/pages/ArPage";
+
+const CreatePage = lazy(() => import("@/pages/CreatePage"));
+const LessonPage = lazy(() => import("@/pages/LessonPage"));
+const ArPage = lazy(() => import("@/pages/ArPage"));
 
 const queryClient = new QueryClient();
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen grid place-items-center bg-background">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+    </div>
+  );
+}
 
 function LangRedirect() {
   const [, setLocation] = useLocation();
@@ -49,7 +58,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <Router />
+        <Suspense fallback={<PageLoader />}>
+          <Router />
+        </Suspense>
       </WouterRouter>
     </QueryClientProvider>
   );

@@ -51,6 +51,57 @@ export function floatLoop(el: HTMLElement | null) {
   });
 }
 
+export function wiggleElement(el: HTMLElement | null) {
+  if (!el) return;
+  animate(el, {
+    rotate: [-3, 3, -3],
+    duration: 500,
+    ease: "inOutQuad",
+  });
+}
+
+export function scaleInBounce(el: HTMLElement | null) {
+  if (!el) return;
+  animate(el, {
+    scale: [0.8, 1.1, 1],
+    opacity: [0, 1],
+    duration: 600,
+    ease: "outElastic",
+  });
+}
+
+export function glowEffect(el: HTMLElement | null) {
+  if (!el) return;
+  animate(el, {
+    boxShadow: ["0 0 0 rgba(245, 197, 66, 0)", "0 0 20px rgba(245, 197, 66, 0.8)", "0 0 0 rgba(245, 197, 66, 0)"],
+    duration: 1500,
+    loop: true,
+    ease: "inOutSine",
+  });
+}
+
+export function slideInLeft(el: HTMLElement | null, delay = 0) {
+  if (!el) return;
+  animate(el, {
+    translateX: [-30, 0],
+    opacity: [0, 1],
+    delay,
+    duration: 500,
+    ease: "outCubic",
+  });
+}
+
+export function slideInRight(el: HTMLElement | null, delay = 0) {
+  if (!el) return;
+  animate(el, {
+    translateX: [30, 0],
+    opacity: [0, 1],
+    delay,
+    duration: 500,
+    ease: "outCubic",
+  });
+}
+
 export const framerSpring = {
   type: "spring" as const,
   stiffness: 260,
